@@ -32,7 +32,7 @@ describe('ProtectedRoute', () => {
 
   it('renders children when authenticated', () => {
     renderWithAuth(<Protected />, {
-      authValue: { user: { id: 'u1', email: 'test@example.com', mfaEnabled: false }, loading: false },
+      authValue: { user: { id: 'u1', email: 'test@example.com', mfaEnabled: false, backendUrl: null }, loading: false },
     })
     expect(screen.getByText('secret content')).toBeInTheDocument()
   })

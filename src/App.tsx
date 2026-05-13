@@ -19,6 +19,7 @@ const ResetPassword = lazy(() => import('@/pages/ResetPassword').then((m) => ({ 
 const VerifyEmail = lazy(() => import('@/pages/VerifyEmail').then((m) => ({ default: m.VerifyEmail })))
 const MfaChallenge = lazy(() => import('@/pages/MfaChallenge').then((m) => ({ default: m.MfaChallenge })))
 const Account = lazy(() => import('@/pages/Account').then((m) => ({ default: m.Account })))
+const Sandbox = lazy(() => import('@/pages/Sandbox').then((m) => ({ default: m.Sandbox })))
 
 const APP_ROUTES = ['docs', 'trace', 'studio', 'api', 'changelog', 'sign-in', 'sign-up', 'forgot-password', 'reset-password', 'verify-email', 'mfa-challenge', 'account']
 
@@ -66,6 +67,7 @@ function Layout() {
             <Route path="/verify-email"     element={<VerifyEmail />} />
             <Route path="/mfa-challenge"    element={<MfaChallenge />} />
             <Route path="/account"          element={<ProtectedRoute><Account /></ProtectedRoute>} />
+            <Route path="/sandbox"          element={<Sandbox />} />
             <Route path="*"                 element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>
