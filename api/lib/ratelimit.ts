@@ -1,5 +1,5 @@
 import { Redis } from '@upstash/redis'
-import { Ratelimit } from '@upstash/ratelimit'
+import { Ratelimit, type Duration } from '@upstash/ratelimit'
 
 function getRedis(): Redis {
   const url   = process.env.UPSTASH_REDIS_REST_URL
@@ -8,7 +8,6 @@ function getRedis(): Redis {
   return new Redis({ url, token })
 }
 
-type Duration = `${number} ${'ms' | 's' | 'm' | 'h' | 'd'}`
 
 function makeLimiter(window: Duration, limit: number, prefix: string) {
   return new Ratelimit({
