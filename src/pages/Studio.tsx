@@ -1,6 +1,8 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Badge, Button, GraphCanvas, Icon, Panel } from '@/components'
+import { BackendConnect } from '@/components'
 import { Seo } from '@/components/Seo'
+import { useBackendUrl } from '@/hooks/useBackendUrl'
 import { EDGES, STUDIO_NODES } from '@/data/mock'
 import { api } from '@/lib/api'
 import type { Edge, GraphComplexity, LensMode, StudioNode } from '@/types'
@@ -80,6 +82,7 @@ const NODE_META: Record<
 }
 
 export function Studio() {
+  const { backendUrl, clear } = useBackendUrl()
   const [selection, setSelection] = useState<Selection>({ type: 'node', nodeName: 'charge' })
   const [lensMode, setLensMode] = useState<LensMode>('relations')
   const [mermaid, setMermaid] = useState<string | null>(null)
@@ -138,6 +141,8 @@ export function Studio() {
     }
   }
 
+  if (!backendUrl) return <BackendConnect />
+
   return (
     <div className="max-w-[1500px] mx-auto px-4 lg:px-6 py-6 fade-up">
       <Seo
@@ -146,7 +151,22 @@ export function Studio() {
         path="/studio"
         noindex
       />
-      <BackendBanner isLive={isLive} onRefresh={fetchBackend} />
+      <div className="flex items-center gap-3">
+        <BackendBanner isLive={isLive} onRefresh={fetchBackend} />
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="inline-flex items-center gap-1.5 text-[11px] text-ink-400">
+            <span className="w-1.5 h-1.5 rounded-full bg-accent-500" />
+            {backendUrl}
+          </span>
+          <button
+            onClick={clear}
+            className="text-[11px] text-ink-400 hover:text-ink-700 dark:hover:text-ink-300 transition-colors"
+            title="Disconnect"
+          >
+            ×
+          </button>
+        </div>
+      </div>
       <div className="mt-2">
         <StudioHeader complexity={complexity} mermaid={mermaid} nodeCount={activeNodes.length} edgeCount={activeEdges.length} />
       </div>

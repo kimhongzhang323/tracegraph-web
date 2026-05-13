@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Panel, Badge, Button } from '@/components'
+import { BackendConnect } from '@/components'
 import { Seo } from '@/components/Seo'
+import { useBackendUrl } from '@/hooks/useBackendUrl'
 import { MOCK_TRACE, MOCK_TRACE_LIST } from '@/data/mock'
 import { api } from '@/lib/api'
 import type { ExecutionTrace, TraceDiff, TraceStep, TraceSummary } from '@/types'
@@ -65,6 +67,7 @@ function normaliseTrace(raw: unknown): ExecutionTrace {
 }
 
 export function TraceExplorer() {
+  const { backendUrl, clear } = useBackendUrl()
   const [activeIdx, setActiveIdx] = useState(0)
   const [trace, setTrace] = useState<ExecutionTrace>(MOCK_TRACE)
   const [traceList, setTraceList] = useState<TraceSummary[]>(MOCK_TRACE_LIST)
@@ -144,6 +147,8 @@ export function TraceExplorer() {
       .catch(() => { alert('Diff failed'); setDiffLoading(false) })
   }
 
+  if (!backendUrl) return <BackendConnect />
+
   const step = trace.steps[activeIdx] ?? trace.steps[0]
 
   return (
@@ -167,6 +172,20 @@ export function TraceExplorer() {
             {m === 'inspect' ? 'Inspect' : 'Diff / Compare'}
           </button>
         ))}
+        <div className="flex-1" />
+        <div className="flex items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 text-[11px] text-ink-400">
+            <span className="w-1.5 h-1.5 rounded-full bg-accent-500" />
+            {backendUrl}
+          </span>
+          <button
+            onClick={clear}
+            className="text-[11px] text-ink-400 hover:text-ink-700 dark:hover:text-ink-300 transition-colors"
+            title="Disconnect"
+          >
+            ×
+          </button>
+        </div>
       </div>
 
       {viewMode === 'diff' ? (
