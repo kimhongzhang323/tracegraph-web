@@ -4,6 +4,7 @@ export interface AuthUser {
   id: string
   email: string
   mfaEnabled: boolean
+  backendUrl: string | null
 }
 
 export interface AuthContextValue {
