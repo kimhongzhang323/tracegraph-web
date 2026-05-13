@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Find C:UserskimhoOneDriveDocumentsGitHubtracegraph-web *)",
+      "Bash(Get-ChildItem *)",
+      "Bash(npm uninstall *)",
+      "Bash(npm install *)",
+      "Bash(npm run *)",
+      "Bash(xargs grep -l \"contexts/AuthProvider\")",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git worktree *)",
+      "Bash(git push *)",
+      "Bash(gh pr create --title 'feat: concurrent handling + security hardening' --body ' *)",
+      "Bash(cat vercel.json)",
+      "Bash(ls .vercel/)",
+      "Bash(npm ls *)",
+      "Bash(git ls-tree *)",
+      "Bash(git checkout *)",
+      "Bash(gh pr *)",
+      "Bash(git rm *)",
+      "Bash(git rebase *)",
+      "Bash(GIT_EDITOR=true git rebase *)"
+    ]
+  }
+}
