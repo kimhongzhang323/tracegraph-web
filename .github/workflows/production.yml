@@ -32,9 +32,6 @@ jobs:
     name: Deploy to Production
     runs-on: ubuntu-latest
     needs: quality
-    environment:
-      name: production
-      url: https://tracegraph.vercel.app
     steps:
       - uses: actions/checkout@v4
 
