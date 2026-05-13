@@ -2061,8 +2061,8 @@ Tool calculator = args -> String.valueOf(eval(args));
 Graph<AgentState> agentGraph = ReActAgent.<AgentState>builder()
     .client(openaiClient)
     // tool definitions tell the LLM what tools are available
-    .tool(new ToolDefinition("web_search",   "Search the web",       "{\"query\": \"string\"}"), webSearch)
-    .tool(new ToolDefinition("calculator",   "Evaluate math",        "{\"expr\":  \"string\"}"), calculator)
+    .tool(new ToolDefinition('web_search',   'Search the web',       '{"query": "string"}'), webSearch)
+    .tool(new ToolDefinition('calculator',   'Evaluate math',        '{"expr":  "string"}'), calculator)
     // requestFactory: build the LLM request from current state (includes tool calls history)
     .requestFactory(s -> LlmRequest.builder()
         .model("gpt-4o")

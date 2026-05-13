@@ -1,7 +1,7 @@
 /**
  * Environment-aware API client.
  *
- * In dev (Vite proxy): requests go to /tracegraph/* → proxied to localhost:8082.
+ * In dev (Vite proxy): requests go to /api/* → proxied to localhost:8082.
  * In production on Vercel with a separate backend: set VITE_API_BASE_URL to the
  * deployed Spring Boot origin (e.g. https://api.myapp.com).
  * In production served by Spring Boot itself: leave VITE_API_BASE_URL empty —
@@ -16,6 +16,10 @@ const REQUEST_TIMEOUT_MS = 10_000
 // from fanning out identical fetches.
 const inflight = new Map<string, Promise<unknown>>()
 
+function getCsrfToken(): string {
+  return document.cookie.match(/__Host-csrf=([^;]+)/)?.[1] ?? ''
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const url = `${BASE}${path}`
   const method = (init?.method ?? 'GET').toUpperCase()
@@ -27,8 +31,14 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
 
+  const extraHeaders: Record<string, string> = {}
+  if (method !== 'GET' && method !== 'HEAD') {
+    extraHeaders['x-csrf-token'] = getCsrfToken()
+  }
+
   const promise = fetch(url, {
-    headers: { 'Content-Type': 'application/json', ...init?.headers },
+    headers: { 'Content-Type': 'application/json', ...extraHeaders, ...init?.headers },
+    credentials: 'include',
     signal: controller.signal,
     ...init,
   })
@@ -65,19 +75,19 @@ export interface PageResult<T> {
 export const api = {
   traces: {
     list: (limit = 20, offset = 0) =>
-      request<PageResult<string> | string[]>(`/tracegraph/traces?limit=${limit}&offset=${offset}`),
+      request<PageResult<string> | string[]>(`/api/traces?limit=${limit}&offset=${offset}`),
     get: (id: string) =>
-      request<unknown>(`/tracegraph/traces/${id}`),
+      request<unknown>(`/api/traces/${id}`),
     delete: (id: string) =>
-      request<void>(`/tracegraph/traces/${id}`, { method: 'DELETE' }),
+      request<void>(`/api/traces/${id}`, { method: 'DELETE' }),
     diff: (a: string, b: string) =>
-      request<unknown>(`/tracegraph/traces/${a}/diff/${b}`),
+      request<unknown>(`/api/traces/${a}/diff/${b}`),
     replay: (id: string, step = -1) =>
-      request<{ executionId: string }>(`/tracegraph/traces/${id}/replay?step=${step}`, { method: 'POST' }),
-    stream: () => new EventSource(`${BASE}/tracegraph/traces/stream`),
+      request<{ executionId: string }>(`/api/traces/${id}/replay?step=${step}`, { method: 'POST' }),
+    stream: () => new EventSource(`${BASE}/api/traces/stream`),
   },
   graph: {
-    mermaid: () => request<string>('/tracegraph/ui/graph'),
-    complexity: () => request<import('@/types').GraphComplexity>('/tracegraph/ui/complexity'),
+    mermaid: () => request<string>('/api/graph/mermaid'),
+    complexity: () => request<import('@/types').GraphComplexity>('/api/graph/complexity'),
   },
 }

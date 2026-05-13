@@ -39,9 +39,11 @@ export function Button(props: ButtonProps | AnchorProps) {
     </>
   )
   if (props.as === 'a') {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { as: _a, variant: _v, size: _s, icon: _i, iconRight: _ir, ...rest } = props
     return <a className={cls} {...rest}>{inner}</a>
   }
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { as: _a, variant: _v, size: _s, icon: _i, iconRight: _ir, ...rest } = props as ButtonProps
   return <button className={cls} {...rest}>{inner}</button>
 }

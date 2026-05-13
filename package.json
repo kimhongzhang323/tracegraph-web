@@ -5,21 +5,36 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:api": "tsx watch --env-file=.env.local api/dev.ts",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "lint": "eslint . --max-warnings 0",
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\""
   },
   "dependencies": {
-    "@clerk/clerk-react": "^5.61.6",
+    "@hono/node-server": "^2.0.2",
+    "@neondatabase/serverless": "^1.1.0",
+    "@node-rs/argon2": "^2.0.2",
+    "@simplewebauthn/browser": "^13.3.0",
+    "@simplewebauthn/server": "^13.3.0",
+    "@upstash/ratelimit": "^2.0.8",
+    "@upstash/redis": "^1.38.0",
     "@xyflow/react": "^12.10.2",
+    "cookie": "^1.1.1",
     "d3-force": "^3.0.0",
+    "drizzle-orm": "^0.45.2",
+    "hono": "^4.12.18",
+    "jose": "^6.2.3",
     "lucide-react": "^0.460.0",
+    "otpauth": "^9.5.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^6.28.0"
+    "react-router-dom": "^6.28.0",
+    "resend": "^6.12.3",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@types/cookie": "^0.6.0",
     "@types/d3-force": "^3.0.10",
     "@types/node": "^25.6.0",
     "@types/react": "^18.3.12",
@@ -28,6 +43,7 @@
     "@typescript-eslint/parser": "^8.13.0",
     "@vitejs/plugin-react": "^4.3.3",
     "autoprefixer": "^10.4.20",
+    "drizzle-kit": "^0.31.10",
     "eslint": "^9.13.0",
     "eslint-plugin-react-hooks": "^5.0.0",
     "eslint-plugin-react-refresh": "^0.4.14",
@@ -35,7 +51,9 @@
     "postcss": "^8.4.49",
     "prettier": "^3.3.3",
     "tailwindcss": "^3.4.15",
+    "tsx": "^4.21.0",
     "typescript": "^5.6.3",
+    "typescript-eslint": "^8.59.3",
     "vite": "^6.0.1"
   }
 }

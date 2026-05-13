@@ -1,4 +1,4 @@
-import { SignedIn, SignedOut, UserButton } from '@clerk/clerk-react'
+import { useAuth } from '@/contexts/authContext'
 import { Button } from './Button'
 import { Icon } from './Icon'
 
@@ -18,6 +18,8 @@ interface HeaderProps {
 }
 
 export function Header({ route, theme, setTheme }: HeaderProps) {
+  const { user, signOut } = useAuth()
+
   return (
     <header className="sticky top-0 z-50 backdrop-blur-md bg-white/75 dark:bg-ink-950/75 border-b hairline">
       <div className="max-w-[1500px] mx-auto px-6 lg:px-8 h-14 flex items-center gap-6">
@@ -52,22 +54,17 @@ export function Header({ route, theme, setTheme }: HeaderProps) {
              aria-label="GitHub" target="_blank" rel="noreferrer">
             <Icon name="github" size={15} />
           </a>
-          <SignedOut>
-            <Button as="a" href="/sign-in" size="sm" variant="ghost" className="hidden sm:inline-flex">Sign in</Button>
-            <Button as="a" href="/sign-up" size="sm" variant="primary" className="hidden sm:inline-flex">Sign up</Button>
-          </SignedOut>
-          <SignedIn>
-            <UserButton
-              appearance={{
-                elements: {
-                  avatarBox: 'w-7 h-7',
-                  userButtonPopoverCard: 'dark:bg-ink-950 dark:border-ink-800',
-                  userButtonPopoverActionButton: 'dark:text-ink-300 dark:hover:bg-ink-900',
-                  userButtonPopoverActionButtonText: 'dark:text-ink-300',
-                },
-              }}
-            />
-          </SignedIn>
+          {user ? (
+            <div className="flex items-center gap-2">
+              <a href="/account" className="text-[13px] text-ink-600 dark:text-ink-400 hover:text-ink-950 dark:hover:text-white px-2">{user.email}</a>
+              <Button size="sm" variant="ghost" onClick={signOut} className="hidden sm:inline-flex">Sign out</Button>
+            </div>
+          ) : (
+            <>
+              <Button as="a" href="/sign-in" size="sm" variant="ghost" className="hidden sm:inline-flex">Sign in</Button>
+              <Button as="a" href="/sign-up" size="sm" variant="primary" className="hidden sm:inline-flex">Sign up</Button>
+            </>
+          )}
         </div>
       </div>
     </header>

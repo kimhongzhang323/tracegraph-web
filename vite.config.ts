@@ -14,8 +14,8 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      '/tracegraph': {
-        target: 'http://localhost:8082',
+      '/api/': {
+        target: 'http://localhost:3000',
         changeOrigin: true,
       },
     },

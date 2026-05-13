@@ -1,19 +1,14 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { ClerkProvider } from '@clerk/clerk-react'
+import { AuthProvider } from './contexts/AuthProvider'
 import './index.css'
 import '@xyflow/react/dist/style.css'
 import { App } from './App'
 
-const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
-if (!PUBLISHABLE_KEY) {
-  throw new Error('Missing VITE_CLERK_PUBLISHABLE_KEY — copy .env.example to .env.local and fill it in.')
-}
-
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <ClerkProvider publishableKey={PUBLISHABLE_KEY} afterSignOutUrl="/">
+    <AuthProvider>
       <App />
-    </ClerkProvider>
+    </AuthProvider>
   </StrictMode>,
 )
