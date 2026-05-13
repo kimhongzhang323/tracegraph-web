@@ -13,6 +13,8 @@ proxyRouter.all('/*', async (c) => {
   const upstreamPath = c.req.path.replace(/^\/api\/traces/, '/tracegraph/traces')
   const url = `${SPRING_BOOT_URL}${upstreamPath}${c.req.url.includes('?') ? '?' + c.req.url.split('?')[1] : ''}`
 
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 30_000)
   const upstreamRes = await fetch(url, {
     method: c.req.method,
     headers: {
@@ -21,7 +23,8 @@ proxyRouter.all('/*', async (c) => {
       'x-forwarded-for': c.req.header('x-forwarded-for') ?? '',
     },
     body: ['GET', 'HEAD'].includes(c.req.method) ? undefined : await c.req.raw.arrayBuffer(),
-  })
+    signal: controller.signal,
+  }).finally(() => clearTimeout(timer))
 
   // SSE passthrough
   const ct = upstreamRes.headers.get('content-type') ?? ''

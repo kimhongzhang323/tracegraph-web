@@ -9,4 +9,14 @@ export async function securityHeaders(c: Context, next: Next) {
   c.header('Referrer-Policy', 'strict-origin-when-cross-origin')
   c.header('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
   c.header('Cross-Origin-Opener-Policy', 'same-origin')
+  c.header('Cross-Origin-Resource-Policy', 'same-origin')
+  c.header('X-DNS-Prefetch-Control', 'off')
+  c.header(
+    'Content-Security-Policy',
+    [
+      "default-src 'none'",
+      "connect-src 'self'",
+      "frame-ancestors 'none'",
+    ].join('; '),
+  )
 }

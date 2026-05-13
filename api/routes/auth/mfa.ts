@@ -8,6 +8,7 @@ import { requireAuth } from '../../middleware/session.js'
 import { audit } from '../../lib/audit.js'
 import { getSessionToken } from '../../lib/cookies.js'
 import { hashToken } from '../../lib/tokens.js'
+import { rotateSession } from '../../lib/sessionRotation.js'
 
 export const mfaRouter = new Hono()
 
@@ -71,6 +72,7 @@ mfaRouter.post('/mfa/verify', async (c) => {
     const secret = decryptSecret(user.mfaSecretEnc)
     if (verifyTotp(secret, code)) {
       await db.update(sessions).set({ pendingMfa: false }).where(eq(sessions.id, sess.id))
+      await rotateSession(c, sess.id)
       await audit('login.mfa.success', { userId: sess.userId, ip: ip(c) })
       return c.json({ ok: true, email: user.email })
     }
@@ -84,6 +86,7 @@ mfaRouter.post('/mfa/verify', async (c) => {
     if (await verifyCode(rc.codeHash, code)) {
       await db.update(recoveryCodes).set({ usedAt: new Date() }).where(eq(recoveryCodes.id, rc.id))
       await db.update(sessions).set({ pendingMfa: false }).where(eq(sessions.id, sess.id))
+      await rotateSession(c, sess.id)
       await audit('recovery.use', { userId: sess.userId, ip: ip(c) })
       return c.json({ ok: true, email: user.email })
     }

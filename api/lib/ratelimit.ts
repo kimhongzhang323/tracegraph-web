@@ -8,7 +8,9 @@ function getRedis(): Redis {
   return new Redis({ url, token })
 }
 
-function makeLimiter(window: string, limit: number, prefix: string) {
+type Duration = `${number} ${'ms' | 's' | 'm' | 'h' | 'd'}`
+
+function makeLimiter(window: Duration, limit: number, prefix: string) {
   return new Ratelimit({
     redis: getRedis(),
     limiter: Ratelimit.slidingWindow(limit, window),
