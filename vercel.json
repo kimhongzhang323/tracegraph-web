@@ -36,5 +36,8 @@
         }
       ]
     }
+  ],
+  "crons": [
+    { "path": "/api/cron/session-gc", "schedule": "0 0 * * *" }
   ]
 }
