@@ -89,6 +89,23 @@ jobs:
           path: dist/
           retention-days: 3
 
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci --prefer-offline
+      - run: npm run test:coverage
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage-pr-${{ github.event.pull_request.number }}
+          path: coverage/lcov.info
+          retention-days: 7
+
   audit:
     name: Security Audit
     runs-on: ubuntu-latest

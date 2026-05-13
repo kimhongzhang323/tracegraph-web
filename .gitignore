@@ -8,3 +8,7 @@ dist-ssr
 .env*.local
 .worktrees/
 *.tsbuildinfo
+e2e/.auth/
+e2e/*.js
+playwright-report/
+coverage/
