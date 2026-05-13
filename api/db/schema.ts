@@ -18,6 +18,7 @@ export const users = pgTable('users', {
   createdAt,
   updatedAt,
   disabledAt: timestamp('disabled_at', { withTimezone: true }),
+  backendUrl: text('backend_url'),
 })
 
 export const oauthAccounts = pgTable('oauth_accounts', {
