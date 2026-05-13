@@ -9,6 +9,8 @@ import { setSessionCookie, setCsrfCookie } from '../../lib/cookies.js'
 import { sendVerificationEmail, sendPasswordResetEmail } from '../../lib/email.js'
 import { checkLimit, registerLimiter, loginLimiter, passwordResetLimiter } from '../../lib/ratelimit.js'
 import { audit } from '../../lib/audit.js'
+import { isLocked, recordFailure, recordSuccess } from '../../lib/lockout.js'
+import { parseBody } from '../../middleware/validate.js'
 export const passwordRouter = new Hono()
 
 const registerSchema = z.object({
@@ -84,12 +86,13 @@ passwordRouter.post('/verify-email', async (c) => {
 })
 
 passwordRouter.post('/login', async (c) => {
-  const body = await c.req.json().catch(() => null)
-  const parsed = loginSchema.safeParse(body)
-  if (!parsed.success) return c.json({ error: 'Invalid credentials' }, 401)
+  const parsed = await parseBody(c, loginSchema)
+  if ('error' in parsed) return parsed.error
 
   const { email, password } = parsed.data
   const clientIp = ip(c)
+
+  if (isLocked(email)) return c.json({ error: 'Too many requests' }, 429)
 
   const { ok } = await checkLimit(loginLimiter, `${clientIp}:${email}`)
   if (!ok) return c.json({ error: 'Too many requests' }, 429)
@@ -104,6 +107,7 @@ passwordRouter.post('/login', async (c) => {
   const valid = user?.passwordHash ? await verifyPassword(user.passwordHash, password) : (await verifyPassword(dummyHash, password), false)
 
   if (!valid || !user) {
+    recordFailure(email)
     await audit('login.fail', { ip: clientIp, meta: { email } })
     return c.json({ error: 'Invalid credentials' }, 401)
   }
@@ -111,6 +115,7 @@ passwordRouter.post('/login', async (c) => {
   if (user.disabledAt) return c.json({ error: 'Account disabled' }, 403)
   if (!user.emailVerifiedAt) return c.json({ error: 'Email not verified' }, 403)
 
+  recordSuccess(email)
   await audit('login.success', { userId: user.id, ip: clientIp })
   return createSession(c, user.id, email, user.mfaEnabled, user.mfaEnabled)
 })

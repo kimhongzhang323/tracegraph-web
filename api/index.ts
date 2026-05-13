@@ -1,8 +1,10 @@
 import { Hono } from 'hono'
 import { handle } from 'hono/vercel'
+import { corsMiddleware } from './middleware/cors.js'
 import { securityHeaders } from './middleware/securityHeaders.js'
 import { sessionMiddleware } from './middleware/session.js'
 import { csrfMiddleware } from './middleware/csrf.js'
+import { requestSizeLimit } from './middleware/requestSize.js'
 import { passwordRouter } from './routes/auth/password.js'
 import { oauthRouter } from './routes/auth/oauth.js'
 import { magicRouter } from './routes/auth/magic.js'
@@ -14,9 +16,11 @@ import { proxyRouter } from './routes/proxy.js'
 
 const app = new Hono().basePath('/api')
 
+app.use('*', corsMiddleware)
 app.use('*', securityHeaders)
 app.use('*', sessionMiddleware)
 app.use('*', csrfMiddleware)
+app.use('*', requestSizeLimit)
 
 app.route('/auth', passwordRouter)
 app.route('/auth/oauth', oauthRouter)
@@ -32,7 +36,7 @@ app.get('/health', (c) => c.json({ ok: true }))
 app.onError((err, c) => {
   const status = (err as { status?: number }).status ?? 500
   const message = status < 500 ? err.message : 'Internal server error'
-  return c.json({ error: message }, status as 400 | 401 | 403 | 404 | 429 | 500)
+  return c.json({ error: message }, status as 400 | 401 | 403 | 404 | 413 | 429 | 500)
 })
 
 export default handle(app)
