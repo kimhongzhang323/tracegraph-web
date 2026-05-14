@@ -1,7 +1,12 @@
 import { test, expect } from '@playwright/test'
+import { mockMe } from './api-mocks'
 
 // These tests deliberately run unauthenticated
 test.use({ storageState: { cookies: [], origins: [] } })
+
+test.beforeEach(async ({ page }) => {
+  await mockMe(page, false)
+})
 
 const protectedRoutes = ['/trace', '/studio', '/account']
 

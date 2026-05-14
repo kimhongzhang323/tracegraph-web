@@ -14,8 +14,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       PLAYWRIGHT_BASE_URL: http://localhost:5173
-      E2E_USER_EMAIL: ${{ secrets.E2E_USER_EMAIL }}
-      E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
 
@@ -31,14 +29,6 @@ jobs:
 
       - name: Run E2E tests
         run: npm run test:e2e
-        env:
-          # Pass all env vars needed by the Vite dev server + API
-          VITE_API_BASE_URL: ''
-          DATABASE_URL: ${{ secrets.E2E_DATABASE_URL }}
-          UPSTASH_REDIS_REST_URL: ${{ secrets.E2E_UPSTASH_REDIS_REST_URL }}
-          UPSTASH_REDIS_REST_TOKEN: ${{ secrets.E2E_UPSTASH_REDIS_REST_TOKEN }}
-          JWT_SECRET: ${{ secrets.E2E_JWT_SECRET }}
-          RESEND_API_KEY: ${{ secrets.E2E_RESEND_API_KEY }}
 
       - name: Upload Playwright report
         if: always()

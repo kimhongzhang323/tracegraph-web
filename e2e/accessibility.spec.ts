@@ -1,7 +1,12 @@
 import { test, expect } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
+import { mockMe } from './api-mocks'
 
 test.use({ storageState: { cookies: [], origins: [] } }) // unauthenticated — public pages
+
+test.beforeEach(async ({ page }) => {
+  await mockMe(page, false)
+})
 
 const publicPages = ['/', '/sign-in', '/sign-up', '/docs']
 
