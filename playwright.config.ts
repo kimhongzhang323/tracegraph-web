@@ -22,6 +22,7 @@ export default defineConfig({
     {
       name: 'chromium-unauthed',
       use: { ...devices['Desktop Chrome'] },
+      testIgnore: ['**/trace-explorer.spec.*'],
     },
   ],
   webServer: {

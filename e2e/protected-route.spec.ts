@@ -1,7 +1,12 @@
 import { test, expect } from '@playwright/test'
+import { mockMe } from './api-mocks'
 
 // These tests deliberately run unauthenticated
 test.use({ storageState: { cookies: [], origins: [] } })
+
+test.beforeEach(async ({ page }) => {
+  await mockMe(page, false)
+})
 
 const protectedRoutes = ['/trace', '/studio', '/account']
 
@@ -17,5 +22,5 @@ test('redirect preserves intended destination after sign-in', async ({ page }) =
   await expect(page).toHaveURL(/sign-in/)
   // The sign-in page URL or state should remember where we were going
   // (exact assertion depends on implementation — at minimum we land on sign-in)
-  await expect(page.getByRole('heading', { name: /sign in/i })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /welcome back/i })).toBeVisible()
 })

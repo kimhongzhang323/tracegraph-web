@@ -22,7 +22,7 @@ export function AuthLayout({ children }: AuthLayoutProps) {
         <div className="relative z-10 flex items-center gap-2.5">
           <GraphLogo />
           <span className="text-[15px] font-medium tracking-tight text-white">TraceGraph</span>
-          <span className="mono text-[10px] text-ink-500 px-1.5 h-[18px] inline-flex items-center rounded bg-ink-900">
+          <span className="mono text-[10px] text-ink-300 px-1.5 h-[18px] inline-flex items-center rounded bg-ink-900">
             v0.3.0
           </span>
         </div>
@@ -35,7 +35,7 @@ export function AuthLayout({ children }: AuthLayoutProps) {
               Typed execution graphs
               <br />for the JVM.
             </p>
-            <p className="text-[13px] text-ink-400 leading-relaxed max-w-[280px]">
+            <p className="text-[13px] text-ink-300 leading-relaxed max-w-[280px]">
               Replay any run, resume from a checkpoint, and observe every state
               transition — with full type safety.
             </p>
@@ -45,7 +45,7 @@ export function AuthLayout({ children }: AuthLayoutProps) {
         {/* Bottom status */}
         <div className="relative z-10 flex items-center gap-2">
           <span className="w-1.5 h-1.5 rounded-full bg-accent-500 pulse-dot" />
-          <span className="mono text-[11px] text-ink-500">Open beta · Spring Boot starter</span>
+          <span className="mono text-[11px] text-ink-300">Open beta · Spring Boot starter</span>
         </div>
       </aside>
 

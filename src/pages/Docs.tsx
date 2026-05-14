@@ -25,7 +25,7 @@ export function Docs() {
         description={page.lede}
         path={location.pathname}
       />
-      <aside className="lg:sticky lg:top-20 lg:self-start lg:max-h-[calc(100vh-100px)] overflow-y-auto scroll-thin pr-2">
+      <aside className="lg:sticky lg:top-20 lg:self-start lg:max-h-[calc(100vh-100px)] overflow-y-auto scroll-thin pr-2" tabIndex={0}>
         {DOCS_TREE.map((group) => (
           <div key={group.section} className="mb-6">
             <h4 className="mono text-[10.5px] uppercase tracking-[0.14em] text-ink-500 mb-3">{group.section}</h4>

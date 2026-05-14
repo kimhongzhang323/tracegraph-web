@@ -66,7 +66,7 @@ export function SignIn() {
         <Field label="Password" type="password" value={password} onChange={setPassword}
           autoComplete="current-password" placeholder="••••••••" />
 
-        {error && <p className="text-[12px] text-red-600 dark:text-red-400 leading-snug">{error}</p>}
+        {error && <p role="alert" className="text-[12px] text-red-600 dark:text-red-400 leading-snug">{error}</p>}
 
         <button type="submit" disabled={loading}
           className="w-full h-10 rounded-xl bg-ink-950 dark:bg-white text-white dark:text-ink-950 text-[13px] font-medium tracking-[-0.01em] hover:bg-ink-800 dark:hover:bg-ink-100 disabled:opacity-40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink-950/40 dark:focus-visible:ring-white/40">

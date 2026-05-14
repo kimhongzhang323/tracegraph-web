@@ -71,7 +71,7 @@ function HeroViz() {
           <span className="w-2.5 h-2.5 rounded-full bg-ink-200 dark:bg-ink-800" />
           <span className="mono text-[11px] text-ink-500 ml-3">order-pipeline · execution e9c4f1a2</span>
         </div>
-        <div className="flex items-center gap-1.5 mono text-[11px] text-emerald-600 dark:text-emerald-400">
+        <div className="flex items-center gap-1.5 mono text-[11px] text-emerald-700 dark:text-emerald-400">
           <StatusDot tone="ok" pulse /> running
         </div>
       </div>
@@ -140,8 +140,8 @@ function HeroViz() {
             <div className="mt-3 mono text-[12px] space-y-1">
               <div className="text-ink-500">  riskScore: 0.18</div>
               <div className="text-rose-600 dark:text-rose-400">- charged: false</div>
-              <div className="text-emerald-600 dark:text-emerald-400">+ charged: true</div>
-              <div className="text-amber-600 dark:text-amber-400">  attempts: 2 (recovered)</div>
+              <div className="text-emerald-700 dark:text-emerald-400">+ charged: true</div>
+              <div className="text-amber-700 dark:text-amber-400">  attempts: 2 (recovered)</div>
             </div>
           </div>
           <div className="border-t hairline pt-4">
@@ -319,7 +319,7 @@ if (!d.identical()) {
     <section className="border-t border-white/5 bg-ink-950 text-white">
       <div className="max-w-[1320px] mx-auto px-6 lg:px-8 py-24">
         <div className="grid md:grid-cols-[280px_1fr] gap-12 mb-14">
-          <SectionLabel num="03" className="text-ink-400">Replay</SectionLabel>
+          <SectionLabel num="03" className="!text-white/80" numClassName="!text-white/55">Replay</SectionLabel>
           <h2 className="display-tight text-[44px] lg:text-[56px] text-balance">
             The killer feature: re-run any agent execution, with full state diff.
           </h2>
@@ -328,14 +328,15 @@ if (!d.identical()) {
           <div className="rounded-2xl border border-white/10 overflow-hidden bg-black">
             <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/10">
               <span className="mono text-[11px] text-white/50">Replay.java</span>
-              <span className="mono text-[10px] text-white/30 uppercase tracking-wider">JAVA</span>
+              <span className="mono text-[10px] text-white/60 uppercase tracking-wider">JAVA</span>
             </div>
             <pre className="code-block p-6 overflow-x-auto scroll-thin text-white/85"
+              tabIndex={0}
               dangerouslySetInnerHTML={{ __html: highlightJava(code) }} />
           </div>
           <div>
             <h3 className="text-[26px] font-medium tracking-tight">Lineage. Diffs. Forks.</h3>
-            <p className="mt-3 text-[15px] text-ink-400 leading-relaxed">
+            <p className="mt-3 text-[15px] text-white/75 leading-relaxed">
               Every replay produces a fresh executionId but carries forkedFromExecutionId and the step it branched from.
             </p>
             <ul className="mt-8 space-y-0">
@@ -345,7 +346,7 @@ if (!d.identical()) {
                 ['retries', "Don't add steps; attempts tracks the count."],
               ] as const).map(([k, v]) => (
                 <li key={k} className="grid grid-cols-[100px_1fr] gap-4 py-3 border-t border-white/10 text-[14.5px]">
-                  <span className="mono text-[12px] text-ink-500">{k}</span>
+                  <span className="mono text-[12px] text-white/60">{k}</span>
                   <span className="text-white/80">{v}</span>
                 </li>
               ))}
