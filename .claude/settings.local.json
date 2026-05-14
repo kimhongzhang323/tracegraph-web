@@ -20,7 +20,25 @@
       "Bash(gh pr *)",
       "Bash(git rm *)",
       "Bash(git rebase *)",
-      "Bash(GIT_EDITOR=true git rebase *)"
+      "Bash(GIT_EDITOR=true git rebase *)",
+      "Bash(git stash *)",
+      "Bash(findstr \"vite\\\\|jest\\\\|vitest\\\\|test\")",
+      "Bash(Select-Object -First 20)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\kimho\\\\OneDrive\\\\Documents\\\\GitHub\\\\tracegraph-web\\\\api\" -Recurse -File | ForEach-Object { $_.FullName.Replace\\(\"C:\\\\Users\\\\kimho\\\\OneDrive\\\\Documents\\\\GitHub\\\\tracegraph-web\\\\\", \"\"\\) } | Sort-Object)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\kimho\\\\OneDrive\\\\Documents\\\\GitHub\\\\tracegraph-web\\\\src\" -Recurse -File | ForEach-Object { $_.FullName.Replace\\(\"C:\\\\Users\\\\kimho\\\\OneDrive\\\\Documents\\\\GitHub\\\\tracegraph-web\\\\\", \"\"\\) } | Sort-Object)",
+      "Bash(npx playwright *)",
+      "Bash(node -e \"const { AbortController } = require\\('node:events'\\); console.log\\(AbortController\\)\")",
+      "Bash(node -e \"const { AbortController, AbortSignal } = require\\('node:globals'\\); console.log\\(AbortController\\)\")",
+      "Bash(node -e \"console.log\\(globalThis.AbortController?.name\\)\")",
+      "Bash(node -e \"console.log\\(globalThis.AbortController.toString\\(\\).slice\\(0,100\\)\\)\")",
+      "Bash(node -e \"const ac = require\\('node:abort-controller'\\); console.log\\(ac\\)\")",
+      "Bash(vercel env *)",
+      "Bash(vercel ls *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" https://trace-graph-29wffdlo9-kimhongzhang323s-projects.vercel.app/api/me)",
+      "Bash(curl -s https://trace-graph-29wffdlo9-kimhongzhang323s-projects.vercel.app/api/me)",
+      "Bash(npx tsc *)",
+      "Bash(grep -E \"\\\\.tsx?$\")",
+      "PowerShell($env:DATABASE_URL = \"postgresql://neondb_owner:npg_TnEoGZN7Cd2D@ep-rough-forest-apmmwy34-pooler.c-7.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require\"; cd \"C:\\\\Users\\\\kimho\\\\OneDrive\\\\Documents\\\\GitHub\\\\tracegraph-web\"; npx drizzle-kit push 2>&1)"
     ]
   }
 }
