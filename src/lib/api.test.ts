@@ -91,4 +91,36 @@ describe('api client', () => {
     const result = await api.graph.mermaid()
     expect(result).toBe('graph TD; A-->B')
   })
+
+  it('gets a specific trace by id', async () => {
+    server.use(
+      http.get('http://localhost/api/traces/trace-1', () =>
+        HttpResponse.json({ id: 'trace-1', steps: [] }),
+      ),
+    )
+    const result = await api.traces.get('trace-1')
+    expect(result).toEqual({ id: 'trace-1', steps: [] })
+  })
+
+  it('deletes a trace by id', async () => {
+    let deleteMethod = false
+    server.use(
+      http.delete('http://localhost/api/traces/trace-1', ({ request }) => {
+        deleteMethod = request.method === 'DELETE'
+        return HttpResponse.json(null)
+      }),
+    )
+    await api.traces.delete('trace-1')
+    expect(deleteMethod).toBe(true)
+  })
+
+  it('diffs two traces', async () => {
+    server.use(
+      http.get('http://localhost/api/traces/trace-a/diff/trace-b', () =>
+        HttpResponse.json({ added: [], removed: [] }),
+      ),
+    )
+    const result = await api.traces.diff('trace-a', 'trace-b')
+    expect(result).toEqual({ added: [], removed: [] })
+  })
 })
