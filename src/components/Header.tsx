@@ -26,7 +26,7 @@ export function Header({ route, theme, setTheme }: HeaderProps) {
         <a href="/" className="flex items-center gap-2.5">
           <Logo />
           <span className="font-medium tracking-tight text-ink-950 dark:text-white text-[15px]">TraceGraph</span>
-          <span className="mono text-[10.5px] text-ink-500 px-1.5 h-[18px] inline-flex items-center rounded bg-ink-100 dark:bg-ink-900">v0.3.0</span>
+          <span className="mono text-[10.5px] text-ink-700 dark:text-ink-400 px-1.5 h-[18px] inline-flex items-center rounded bg-ink-100 dark:bg-ink-900">v0.3.0</span>
         </a>
 
         <nav className="hidden md:flex items-center gap-1 ml-2">

@@ -17,5 +17,5 @@ test('redirect preserves intended destination after sign-in', async ({ page }) =
   await expect(page).toHaveURL(/sign-in/)
   // The sign-in page URL or state should remember where we were going
   // (exact assertion depends on implementation — at minimum we land on sign-in)
-  await expect(page.getByRole('heading', { name: /sign in/i })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /welcome back/i })).toBeVisible()
 })
