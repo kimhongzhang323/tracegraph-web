@@ -80,3 +80,26 @@
 
 .arrow-link .arrow { transition: transform .2s ease; }
 .arrow-link:hover .arrow { transform: translateX(3px); }
+
+@keyframes edgeFlow { 0% { stroke-dashoffset: 24; } 100% { stroke-dashoffset: 0; } }
+.edge-flow { stroke-dasharray: 6 6; animation: edgeFlow 0.7s linear infinite; }
+
+@keyframes glowNode {
+  0%, 100% { filter: drop-shadow(0 0 0 rgba(13,143,99,0)); }
+  50%      { filter: drop-shadow(0 0 10px rgba(13,143,99,0.55)); }
+}
+.node-running { animation: glowNode 1.4s ease-in-out infinite; }
+
+input[type="range"].sb-range {
+  -webkit-appearance: none; appearance: none;
+  height: 4px; background: rgba(0,0,0,0.12); border-radius: 99px; outline: none;
+}
+.dark input[type="range"].sb-range { background: rgba(255,255,255,0.15); }
+input[type="range"].sb-range::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: #0a0a0a; border: 2px solid #fff; cursor: pointer;
+}
+.dark input[type="range"].sb-range::-webkit-slider-thumb {
+  background: #fff; border: 2px solid #0a0a0a;
+}

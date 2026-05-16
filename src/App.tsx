@@ -21,7 +21,7 @@ const MfaChallenge = lazy(() => import('@/pages/MfaChallenge').then((m) => ({ de
 const Account = lazy(() => import('@/pages/Account').then((m) => ({ default: m.Account })))
 const Sandbox = lazy(() => import('@/pages/Sandbox').then((m) => ({ default: m.Sandbox })))
 
-const APP_ROUTES = ['docs', 'trace', 'studio', 'api', 'changelog', 'sign-in', 'sign-up', 'forgot-password', 'reset-password', 'verify-email', 'mfa-challenge', 'account']
+const APP_ROUTES = ['docs', 'trace', 'studio', 'api', 'changelog', 'sign-in', 'sign-up', 'forgot-password', 'reset-password', 'verify-email', 'mfa-challenge', 'account', 'sandbox']
 
 function routeId(pathname: string): string {
   const seg = pathname.split('/').filter(Boolean)[0] ?? ''
@@ -32,7 +32,7 @@ function Layout() {
   const [theme, setTheme] = useTheme()
   const location = useLocation()
   const route = routeId(location.pathname)
-  const hideFooter = route === 'trace' || route === 'studio'
+  const hideFooter = route === 'trace' || route === 'studio' || route === 'sandbox'
   const seo =
     route === 'docs'
       ? { title: 'Docs', description: 'Documentation for TraceGraph.', path: location.pathname, noindex: false }
