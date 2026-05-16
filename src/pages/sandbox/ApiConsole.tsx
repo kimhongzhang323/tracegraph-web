@@ -289,12 +289,12 @@ export function ApiConsole() {
           title="Response"
           action={
             <div className="flex items-center gap-2 mono text-[10.5px] text-ink-500">
-              {response && response !== '__SSE_STREAMING__' && (
+              {response != null && response !== '__SSE_STREAMING__' ? (
                 <>
                   <span className="text-emerald-600 dark:text-emerald-400">200 OK</span>
                   <span>·</span><span>{latency}ms</span><span>·</span><span>application/json</span>
                 </>
-              )}
+              ) : null}
               {response === '__SSE_STREAMING__' && (
                 <span className="flex items-center gap-1.5 text-accent-700 dark:text-accent-100">
                   <SbStatusDot tone="accent" pulse /> text/event-stream · {sseEvents.length} events
