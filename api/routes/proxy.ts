@@ -10,7 +10,16 @@ proxyRouter.all('/*', async (c) => {
   const session = requireAuth(c)
 
   const jwt = await mintInternalJwt(session.userId, session.email)
-  const upstreamPath = c.req.path.replace(/^\/api\/traces/, '/tracegraph/traces')
+  
+  let upstreamPath = c.req.path
+  if (c.req.path.startsWith('/api/traces')) {
+    upstreamPath = c.req.path.replace(/^\/api\/traces/, '/tracegraph/traces')
+  } else if (c.req.path === '/api/graph/mermaid') {
+    upstreamPath = '/tracegraph/ui/graph'
+  } else if (c.req.path === '/api/graph/complexity') {
+    upstreamPath = '/tracegraph/ui/complexity'
+  }
+
   const url = `${SPRING_BOOT_URL}${upstreamPath}${c.req.url.includes('?') ? '?' + c.req.url.split('?')[1] : ''}`
 
   const controller = new AbortController()

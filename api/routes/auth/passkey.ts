@@ -19,7 +19,7 @@ passkeyRouter.post('/register/begin', async (c) => {
   const [user] = await db.select({ email: users.email }).from(users).where(eq(users.id, session.userId))
   const existing = await db.select({ credentialId: passkeys.credentialId }).from(passkeys).where(eq(passkeys.userId, session.userId))
 
-  const options = await beginRegistration(session.userId, user.email, existing.map((e) => e.credentialId))
+  const options = await beginRegistration(session.userId, user.email, existing.map((e: any) => e.credentialId))
   await db.insert(passkeyChallenge).values({
     challenge: options.challenge,
     userId: session.userId,
@@ -67,7 +67,7 @@ passkeyRouter.post('/login/begin', async (c) => {
     const [user] = await db.select({ id: users.id }).from(users).where(eq(users.email, body.email.toLowerCase())).limit(1)
     if (user) {
       allowCredentials = await db.select({ credId: passkeys.credentialId }).from(passkeys).where(eq(passkeys.userId, user.id))
-        .then((rows) => rows.map((r) => ({ id: r.credId })))
+        .then((rows: any[]) => rows.map((r: any) => ({ id: r.credId })))
     }
   }
 

@@ -50,7 +50,7 @@ export async function sessionMiddleware(c: Context, next: Next) {
         ),
       )
       .limit(1)
-      .then(rows => rows[0] ?? null),
+      .then((rows: any[]) => rows[0] ?? null),
   )
 
   if (!row) {

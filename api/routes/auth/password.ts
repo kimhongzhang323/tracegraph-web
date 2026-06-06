@@ -56,7 +56,7 @@ passwordRouter.post('/register', async (c) => {
     ip: clientIp,
   })
 
-  await sendVerificationEmail(email, token).catch(() => {})
+  await sendVerificationEmail(email, token).catch((err) => console.error('Email sending failed:', err))
   await audit('register.success', { userId: user.id, ip: clientIp })
   return c.json({ ok: true })
 })
@@ -131,7 +131,7 @@ passwordRouter.post('/password/forgot', async (c) => {
   if (user) {
     const token = generateOpaqueToken()
     await db.insert(emailTokens).values({ userId: user.id, purpose: 'reset', tokenHash: hashToken(token), expiresAt: new Date(Date.now() + 3600 * 1000), ip: clientIp })
-    await sendPasswordResetEmail(email, token).catch(() => {})
+    await sendPasswordResetEmail(email, token).catch((err) => console.error('Email sending failed:', err))
     await audit('password.reset.request', { userId: user.id, ip: clientIp })
   }
 

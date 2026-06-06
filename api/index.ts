@@ -30,11 +30,15 @@ app.route('/auth', mfaRouter)
 app.route('/auth', sessionRouter)
 app.route('/me', meRouter)
 app.route('/traces', proxyRouter)
+app.route('/graph', proxyRouter)
 
 app.get('/health', (c) => c.json({ ok: true }))
 
 app.onError((err, c) => {
   const status = (err as { status?: number }).status ?? 500
+  if (status >= 500) {
+    console.error('API error:', err)
+  }
   const message = status < 500 ? err.message : 'Internal server error'
   return c.json({ error: message }, status as 400 | 401 | 403 | 404 | 413 | 429 | 500)
 })
