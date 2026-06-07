@@ -19,9 +19,9 @@ const Protected = () => (
 )
 
 describe('ProtectedRoute', () => {
-  it('renders nothing while loading', () => {
-    const { container } = renderWithAuth(<Protected />, { authValue: { loading: true } })
-    expect(container).toBeEmptyDOMElement()
+  it('renders loader while loading', () => {
+    renderWithAuth(<Protected />, { authValue: { loading: true } })
+    expect(screen.getByText(/loading/i)).toBeInTheDocument()
   })
 
   it('redirects to /sign-in when unauthenticated', () => {
