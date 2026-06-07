@@ -67,6 +67,9 @@ oauthRouter.get('/:provider/callback', async (c) => {
     const [existingUser] = await db.select({ id: users.id }).from(users).where(eq(users.email, oauthUser.email)).limit(1)
 
     if (existingUser) {
+      if (!oauthUser.emailVerified) {
+        return c.redirect('/sign-in?error=oauth_email_unverified', 302)
+      }
       userId = existingUser.id
     } else {
       const [newUser] = await db.insert(users).values({
