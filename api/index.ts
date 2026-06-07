@@ -14,6 +14,7 @@ import { mfaRouter } from './routes/auth/mfa.js'
 import { sessionRouter } from './routes/auth/session.js'
 import { meRouter } from './routes/me.js'
 import { proxyRouter } from './routes/proxy.js'
+import { cronRouter } from './routes/cron.js'
 
 const app = new Hono().basePath('/api')
 
@@ -33,6 +34,7 @@ app.route('/auth', sessionRouter)
 app.route('/me', meRouter)
 app.route('/traces', proxyRouter)
 app.route('/graph', proxyRouter)
+app.route('/cron', cronRouter)
 
 app.get('/health', (c) => c.json({ ok: true }))
 
