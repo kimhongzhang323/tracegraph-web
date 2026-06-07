@@ -11,7 +11,7 @@ test.describe('Sign In', () => {
     await page.goto('/sign-in')
     await page.getByLabel('Email').fill('e2e@example.com')
     await page.getByLabel('Password').fill('password')
-    await page.getByRole('button', { name: /sign in/i }).click()
+    await page.locator('form').getByRole('button', { name: /sign in/i }).click()
     await expect(page).not.toHaveURL(/sign-in/, { timeout: 10_000 })
   })
 
@@ -21,7 +21,7 @@ test.describe('Sign In', () => {
     await page.goto('/sign-in')
     await page.getByLabel('Email').fill('nobody@example.com')
     await page.getByLabel('Password').fill('wrongpassword')
-    await page.getByRole('button', { name: /sign in/i }).click()
+    await page.locator('form').getByRole('button', { name: /sign in/i }).click()
     await expect(page.getByRole('alert').or(page.locator('[data-testid="error"]'))).toBeVisible({
       timeout: 5_000,
     })
