@@ -81,6 +81,13 @@ const NODE_META: Record<
   },
 }
 
+const DEFAULT_META = {
+  tier: 'custom',
+  accent: '#78716c',
+  insight: 'Custom execution node.',
+  context: [] as string[]
+}
+
 export function Studio() {
   const { backendUrl, clear } = useBackendUrl()
   const [selection, setSelection] = useState<Selection>({ type: 'node', nodeName: 'charge' })
@@ -177,7 +184,7 @@ export function Studio() {
             <SectionHeader label="Nodes" count={activeNodes.length} />
             {activeNodes.map((node) => {
               const active = selection.type === 'node' && selection.nodeName === node.name
-              const meta = NODE_META[node.name]
+              const meta = NODE_META[node.name] ?? DEFAULT_META
               return (
                 <button
                   key={node.name}
@@ -473,7 +480,7 @@ function MiniMap({ focusNode, nodes, edges }: { focusNode: string | null; nodes:
         )
       })}
       {nodes.map((node, index) => {
-        const meta = NODE_META[node.name]
+        const meta = NODE_META[node.name] ?? DEFAULT_META
         return (
           <circle
             key={node.name}
@@ -502,7 +509,7 @@ function StudioNodeInspector({ nodeName, nodes, edges }: { nodeName: string; nod
 
   const incoming = edges.filter((edge) => edge.to === node.name)
   const outgoing = edges.filter((edge) => edge.from === node.name)
-  const meta = NODE_META[node.name]
+  const meta = NODE_META[node.name] ?? DEFAULT_META
 
   const Field = ({ k, v }: { k: string; v: string }) => (
     <div className="grid grid-cols-[100px_1fr] gap-3 py-2 border-t hairline first:border-t-0 text-[12.5px]">
