@@ -28,7 +28,7 @@ function parseMermaid(src: string): { nodes: StudioNode[]; edges: Edge[] } {
     }
 
     // Split line by -->
-    const parts = line.split(/-->/)
+    const parts = line.split(/--!?>/)
     if (parts.length < 2) {
       // Just a node declaration? e.g. A[Label]
       const cleaned = cleanNode(line)
