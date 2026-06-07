@@ -17,6 +17,7 @@ const REQUEST_TIMEOUT_MS = 30_000
 // Deduplicates in-flight GET requests by URL — prevents concurrent re-renders
 // from fanning out identical fetches.
 const inflight = new Map<string, Promise<unknown>>()
+const responseCache = new Map<string, unknown>()
 
 function getCsrfToken(): string {
   return document.cookie.match(/__Host-csrf=([^;]+)/)?.[1] ?? ''
@@ -50,8 +51,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
         throw new ApiError(res.status, text)
       }
       const ct = res.headers.get('content-type') ?? ''
-      if (ct.includes('application/json')) return res.json() as T
-      return res.text() as unknown as T
+      const data = ct.includes('application/json') ? await res.json() : await res.text()
+      if (method === 'GET') {
+        responseCache.set(url, data)
+      }
+      return data as T
     })
     .finally(() => {
       clearTimeout(timer)
@@ -75,11 +79,17 @@ export interface PageResult<T> {
 }
 
 export const api = {
+  getCached: <T>(path: string): T | undefined => {
+    return responseCache.get(`${BASE}${path}`) as T | undefined
+  },
   auth: {
     me: () => request<AuthUser>('/api/me'),
     logout: () => request<void>('/api/auth/logout', { method: 'POST' }),
   },
   traces: {
+    getCached: (id: string) => api.getCached<unknown>(`/api/traces/${id}`),
+    listCached: (limit = 20, offset = 0) =>
+      api.getCached<PageResult<string> | string[]>(`/api/traces?limit=${limit}&offset=${offset}`),
     list: (limit = 20, offset = 0) =>
       request<PageResult<string> | string[]>(`/api/traces?limit=${limit}&offset=${offset}`),
     get: (id: string) =>

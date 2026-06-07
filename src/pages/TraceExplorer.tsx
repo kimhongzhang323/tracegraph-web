@@ -85,6 +85,16 @@ export function TraceExplorer() {
   const LIMIT = 20
 
   useEffect(() => {
+    const cachedList = api.traces.listCached(LIMIT, page * LIMIT)
+    if (cachedList) {
+      const ids: string[] = Array.isArray(cachedList)
+        ? (cachedList as string[])
+        : ((cachedList as { items: string[] }).items ?? [])
+      if (ids.length > 0) {
+        setTraceList(ids.map((id) => ({ id, graph: 'graph', status: 'COMPLETED' })))
+      }
+    }
+
     api.traces
       .list(LIMIT, page * LIMIT)
       .then((data) => {
@@ -122,12 +132,21 @@ export function TraceExplorer() {
   }, [])
 
   function loadTrace(id: string) {
+    const cached = api.traces.getCached(id)
+    if (cached && typeof cached === 'object') {
+      setTrace(normaliseTrace(cached))
+    }
     api.traces
       .get(id)
       .then((raw) => {
         if (raw && typeof raw === 'object') {
-          setTrace(normaliseTrace(raw))
-          setActiveIdx(0)
+          const norm = normaliseTrace(raw)
+          setTrace((prev) => {
+            if (prev.executionId !== norm.executionId) {
+              setActiveIdx(0)
+            }
+            return norm
+          })
         }
       })
       .catch(() => {})
