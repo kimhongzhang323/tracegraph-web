@@ -54,10 +54,14 @@ export function useLiveTraces(): TraceSummary[] {
 
     function scheduleReconnect() {
       if (cancelled) return
+      const currentBackoff = backoffRef.current
+      const jitter = Math.random() * 0.3 * currentBackoff
+      const delay = currentBackoff + jitter
+
       timerRef.current = setTimeout(() => {
-        backoffRef.current = Math.min(backoffRef.current * 2, MAX_BACKOFF_MS)
+        backoffRef.current = Math.min(currentBackoff * 2, MAX_BACKOFF_MS)
         openStream()
-      }, backoffRef.current)
+      }, delay)
     }
 
     function onVisibilityChange() {
