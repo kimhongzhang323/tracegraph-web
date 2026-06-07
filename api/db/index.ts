@@ -4,9 +4,11 @@ import { drizzle as drizzlePg } from 'drizzle-orm/postgres-js'
 import postgres from 'postgres'
 import * as schema from './schema.js'
 
-let _db: any = null
+type DbInstance = ReturnType<typeof drizzlePg<typeof schema>>
 
-export function getDb(): any {
+let _db: DbInstance | null = null
+
+export function getDb(): DbInstance {
   if (!_db) {
     const url = process.env.DATABASE_URL
     if (!url) throw new Error('DATABASE_URL is not set — add it to .env.local')
@@ -16,14 +18,14 @@ export function getDb(): any {
       const client = postgres(url)
       _db = drizzlePg(client, { schema })
     } else {
-      _db = drizzleNeon(neon(url), { schema })
+      _db = drizzleNeon(neon(url), { schema }) as unknown as DbInstance
     }
   }
   return _db
 }
 
 // Proxy so existing code can keep using `db.select(...)` etc.
-export const db = new Proxy({} as any, {
+export const db = new Proxy({} as DbInstance, {
   get(_target, prop) {
     return (getDb() as unknown as Record<string | symbol, unknown>)[prop]
   },
