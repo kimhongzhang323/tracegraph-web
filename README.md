@@ -56,18 +56,36 @@ TraceGraph Web is **three tiers**. The browser never talks to the Spring Boot
 runtime directly — every request goes through a Node backend-for-frontend (BFF)
 that owns authentication and proxies data calls with a signed service token.
 
-```
-┌──────────────────────┐     ┌───────────────────────────────┐     ┌──────────────────────┐
-│  React SPA (src/)     │     │  Node BFF — Hono (api/)       │     │  Spring Boot          │
-│  Vite static bundle   │     │  runs as Vercel Functions     │     │  (separate repo)      │
-│                       │     │                               │     │                       │
-│  • pages / components │ ──▶ │  /api/auth/*  sessions, OAuth │     │  TraceGraph runtime   │
-│  • lib/api.ts client  │ XHR │               magic, MFA,     │     │  /tracegraph/traces/* │
-│  • AuthProvider       │ SSE │               passkeys        │     │                       │
-│  • hooks (useLive...) │     │  /api/me      profile         │     │                       │
-│                       │     │  /api/traces  proxy ──────────┼────▶│  (Ed25519 JWT auth)   │
-└──────────────────────┘     │     Neon Postgres · Upstash   │     └──────────────────────┘
-                             └───────────────────────────────┘
+```mermaid
+flowchart LR
+    subgraph T1["Tier 1 · Browser"]
+        SPA["React SPA (src/)<br/>Vite static bundle<br/>pages · AuthProvider · hooks<br/>lib/api.ts client"]
+    end
+
+    subgraph T2["Tier 2 · Node BFF — Hono (api/)"]
+        direction TB
+        MW["Middleware chain<br/>cors → securityHeaders → session → csrf → requestSize"]
+        AUTH["/api/auth/*<br/>password · OAuth · magic · MFA · passkeys/"]
+        ME["/api/me<br/>profile/"]
+        PROXY["/api/traces/*<br/>proxy + JWT mint/"]
+        MW --> AUTH & ME & PROXY
+    end
+
+    subgraph T3["Tier 3 · Spring Boot (separate repo)"]
+        SB["TraceGraph runtime<br/>/tracegraph/traces/*"]
+    end
+
+    DB[("Neon Postgres<br/>users · sessions · MFA")]
+    REDIS[("Upstash Redis<br/>rate limits")]
+
+    SPA -- "XHR / SSE<br/>(cookies + CSRF)" --> MW
+    AUTH --> DB
+    AUTH --> REDIS
+    ME --> DB
+    PROXY -- "Ed25519 JWT<br/>(Bearer)" --> SB
+
+    classDef tier fill:#f6f8fa,stroke:#d0d7de,color:#1f2328;
+    class T1,T2,T3 tier;
 ```
 
 **Tier 1 — React SPA (`src/`).** A static Vite bundle. Pages are lazy-loaded in
@@ -93,16 +111,82 @@ magic-link, MFA challenge, passkey). On success the BFF sets a signed
 `/api/me` to hydrate the user. Mutating requests echo the CSRF token in the
 `x-csrf-token` header (handled automatically by `src/lib/api.ts`).
 
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as User
+    participant SPA as React SPA
+    participant BFF as Node BFF (Hono)
+    participant DB as Neon Postgres
+
+    U->>SPA: Enter credentials
+    SPA->>BFF: POST /api/auth/login
+    BFF->>DB: Verify user (Argon2)
+    DB-->>BFF: User record
+    alt MFA enabled
+        BFF-->>SPA: 200 { mfaRequired: true }
+        U->>SPA: Enter TOTP code
+        SPA->>BFF: POST /api/auth/mfa/verify
+        BFF->>DB: Validate TOTP
+    end
+    BFF-->>SPA: Set-Cookie __Host-session + __Host-csrf
+    SPA->>BFF: GET /api/me (cookie)
+    BFF->>DB: Load profile
+    DB-->>BFF: Profile
+    BFF-->>SPA: 200 { user }
+    Note over SPA: AuthProvider hydrates,<br/>ProtectedRoute unlocks
+```
+
 **Trace data.** A call like `api.traces.list()` hits `/api/traces/*` on the BFF.
 `api/routes/proxy.ts` requires a valid session, **mints an Ed25519 JWT** for the
 user, rewrites the path to `/tracegraph/traces/*`, and forwards it to
 `SPRING_BOOT_URL`. Server-sent event streams (live traces) are passed through
 unbuffered, so `useLiveTraces` gets real-time updates with auto-reconnect/backoff.
 
+```mermaid
+sequenceDiagram
+    autonumber
+    participant SPA as React SPA
+    participant BFF as Node BFF (proxy.ts)
+    participant SB as Spring Boot
+
+    Note over SPA: useLiveTraces() on mount
+
+    SPA->>BFF: GET /api/traces (session cookie)
+    BFF->>BFF: requireAuth() · mint Ed25519 JWT
+    BFF->>SB: GET /tracegraph/traces<br/>Authorization: Bearer <jwt>
+    SB-->>BFF: 200 trace list
+    BFF-->>SPA: 200 trace list
+
+    SPA->>BFF: GET /api/traces/stream (SSE)
+    BFF->>SB: GET /tracegraph/traces/stream (Bearer)
+    loop live events
+        SB-->>BFF: event: Complete
+        BFF-->>SPA: passthrough (text/event-stream)
+        SPA->>SPA: refetch list
+    end
+
+    Note over SPA,SB: on error → exponential backoff,<br/>reconnect (1s → 30s cap)
+```
+
 **Demo / offline mode.** When the backend is unreachable, hooks fall back to seed
 data in `src/data/` so the UI stays fully explorable. The `/sandbox` route goes
 further: a self-contained, in-browser runtime simulation (presets, replay, fork,
-failure injection, waterfall) that needs no backend at all.
+failure injection, waterfall) that needs no backend at all. Its run lifecycle:
+
+```mermaid
+stateDiagram-v2
+    [*] --> idle
+    idle --> running: Run / Space
+    running --> paused: Space / Step / scrub
+    paused --> running: resume
+    running --> completed: reached end
+    running --> failed: injected failure
+    completed --> running: re-run (reset)
+    failed --> running: re-run (reset)
+    paused --> idle: jump to step 0
+    completed --> [*]: Fork → new branched run
+```
 
 **Per-user backend override.** Authenticated users can point at their own Spring
 Boot instance — `useBackendUrl` saves a `backendUrl` on their profile via
