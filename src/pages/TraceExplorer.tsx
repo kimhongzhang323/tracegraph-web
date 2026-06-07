@@ -464,7 +464,8 @@ function GraphPanel({ trace, activeIdx, setActiveIdx }: {
   return (
     <Panel title={`graph · ${trace.graph ?? 'graph'}`}>
       <div className="grid-bg h-full p-2">
-        <svg viewBox="0 0 760 580" preserveAspectRatio="xMidYMid meet" className="w-full h-full text-ink-950 dark:text-white">
+        <svg viewBox="0 0 760 580" preserveAspectRatio="xMidYMid meet" className="w-full h-full text-ink-950 dark:text-white" aria-label="Execution Trace Graph">
+          <title>Execution Trace Graph</title>
           <defs>
             <marker id="tg-arr-acc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#0d8f63" /></marker>
             <marker id="tg-arr-err" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#e11d48" /></marker>
@@ -499,9 +500,22 @@ function GraphPanel({ trace, activeIdx, setActiveIdx }: {
 
           {Object.entries(NODE_LAYOUT_FIXED).map(([name, n]) => {
             const s = nodeStyle(name)
+            const isClickable = !!stepFor(name)
             return (
-              <g key={name} style={{ cursor: 'pointer' }}
-                onClick={() => { const st = stepFor(name); if (st) setActiveIdx(st.i) }}>
+              <g key={name} style={{ cursor: isClickable ? 'pointer' : 'default', outline: 'none' }}
+                role={isClickable ? 'button' : undefined}
+                tabIndex={isClickable ? 0 : undefined}
+                aria-label={`Node: ${name}${'sub' in s && s.sub ? `, ${s.sub}` : ''}`}
+                onClick={() => { const st = stepFor(name); if (st) setActiveIdx(st.i) }}
+                onKeyDown={(e) => {
+                  if (isClickable && (e.key === 'Enter' || e.key === ' ')) {
+                    e.preventDefault()
+                    const st = stepFor(name);
+                    if (st) setActiveIdx(st.i)
+                  }
+                }}
+                className="focus-visible:outline-none [&_rect]:focus-visible:stroke-accent-500 [&_rect]:focus-visible:stroke-[2.5px]"
+              >
                 <rect x={n.x} y={n.y} width={n.w} height={n.h} rx="10"
                   fill={s.fill} stroke={s.stroke} strokeWidth={s.sw}
                   className={s.fill === 'white' ? 'dark:fill-ink-900' : ''} />
