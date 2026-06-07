@@ -15,6 +15,7 @@ export function useLiveTraces(): TraceSummary[] {
   const [list, setList] = useState<TraceSummary[]>(MOCK_TRACE_LIST)
   const backoffRef = useRef(BASE_BACKOFF_MS)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const esRef = useRef<EventSource | null>(null)
 
   useEffect(() => {
@@ -34,6 +35,13 @@ export function useLiveTraces(): TraceSummary[] {
         })
     }
 
+    function fetchListDebounced() {
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current)
+      debounceTimerRef.current = setTimeout(() => {
+        fetchList()
+      }, 500)
+    }
+
     function openStream() {
       if (cancelled || document.visibilityState === 'hidden') return
       esRef.current?.close()
@@ -42,8 +50,7 @@ export function useLiveTraces(): TraceSummary[] {
       esRef.current = es
 
       es.addEventListener('Complete', () => {
-        fetchList()
-        scheduleReconnect()
+        fetchListDebounced()
       })
 
       es.onerror = () => {
@@ -81,6 +88,7 @@ export function useLiveTraces(): TraceSummary[] {
     return () => {
       cancelled = true
       if (timerRef.current) clearTimeout(timerRef.current)
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current)
       esRef.current?.close()
       document.removeEventListener('visibilitychange', onVisibilityChange)
     }
