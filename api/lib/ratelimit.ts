@@ -15,6 +15,8 @@ export const loginLimiter         = { limit: (key: string) => makeLimiter('15 m'
 export const registerLimiter      = { limit: (key: string) => makeLimiter('1 h',  3, 'rl:register')?.limit(key) }
 export const magicLinkLimiter     = { limit: (key: string) => makeLimiter('1 h',  3, 'rl:magic')?.limit(key) }
 export const passwordResetLimiter = { limit: (key: string) => makeLimiter('1 h',  3, 'rl:pwreset')?.limit(key) }
+export const proxyReadLimiter     = { limit: (key: string) => makeLimiter('1 m', 100, 'rl:proxy:read')?.limit(key) }
+export const proxyMutationLimiter = { limit: (key: string) => makeLimiter('1 m', 5, 'rl:proxy:mutate')?.limit(key) }
 
 export async function checkLimit(
   limiter: { limit: (key: string) => Promise<{ success: boolean; reset: number }> | undefined },

@@ -4,6 +4,7 @@ import { mintInternalJwt } from '../lib/jwt.js'
 import { db, users } from '../db/index.js'
 import { eq } from 'drizzle-orm'
 import { getCachedResponse, setCachedResponse, invalidateUserCache } from '../lib/cache.js'
+import { checkLimit, proxyReadLimiter, proxyMutationLimiter } from '../lib/ratelimit.js'
 
 export const proxyRouter = new Hono()
 
@@ -13,6 +14,15 @@ proxyRouter.all('/*', async (c) => {
   const session = requireAuth(c)
 
   const isGet = ['GET', 'HEAD'].includes(c.req.method)
+  const isMutation = !['GET', 'HEAD', 'OPTIONS'].includes(c.req.method)
+
+  // 1. Rate Limiting
+  const limiter = isMutation ? proxyMutationLimiter : proxyReadLimiter
+  const { ok: limitOk } = await checkLimit(limiter, `usr:${session.userId}`)
+  if (!limitOk) {
+    return c.json({ error: 'Too many requests' }, 429)
+  }
+
   const path = c.req.path
   const query = c.req.url.includes('?') ? c.req.url.split('?')[1] : ''
 
@@ -22,6 +32,7 @@ proxyRouter.all('/*', async (c) => {
     path === '/api/graph/complexity'
   )
 
+  // 2. Cache check
   if (isCacheable) {
     const cached = await getCachedResponse(session.userId, path, query)
     if (cached) {
@@ -32,7 +43,7 @@ proxyRouter.all('/*', async (c) => {
     }
   }
 
-  const isMutation = !['GET', 'HEAD', 'OPTIONS'].includes(c.req.method)
+  // 3. Mutation invalidation
   if (isMutation) {
     await invalidateUserCache(session.userId)
   }
