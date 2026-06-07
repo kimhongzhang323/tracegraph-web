@@ -30,6 +30,7 @@ export const oauthAccounts = pgTable('oauth_accounts', {
   createdAt,
 }, (t) => ({
   uniq: unique().on(t.provider, t.providerAccountId),
+  userIdx: index('oauth_accounts_user_idx').on(t.userId),
 }))
 
 export const passkeys = pgTable('passkeys', {
@@ -42,7 +43,9 @@ export const passkeys = pgTable('passkeys', {
   deviceLabel: text('device_label'),
   lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
   createdAt,
-})
+}, (t) => ({
+  userIdx: index('passkeys_user_idx').on(t.userId),
+}))
 
 export const sessions = pgTable('sessions', {
   id,
@@ -68,7 +71,9 @@ export const emailTokens = pgTable('email_tokens', {
   usedAt: timestamp('used_at', { withTimezone: true }),
   ip: text('ip'),
   createdAt,
-})
+}, (t) => ({
+  userIdPurposeIdx: index('email_tokens_user_purpose_idx').on(t.userId, t.purpose),
+}))
 
 export const recoveryCodes = pgTable('recovery_codes', {
   id,
@@ -76,7 +81,10 @@ export const recoveryCodes = pgTable('recovery_codes', {
   codeHash: text('code_hash').notNull(),
   usedAt: timestamp('used_at', { withTimezone: true }),
   createdAt,
-})
+}, (t) => ({
+  userIdx: index('recovery_codes_user_idx').on(t.userId),
+  codeHashIdx: index('recovery_codes_code_hash_idx').on(t.codeHash),
+}))
 
 export const auditLog = pgTable('audit_log', {
   id,
