@@ -34,16 +34,20 @@ proxyRouter.all('/*', async (c) => {
 
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), 30_000)
+  const reqId = c.get('requestId') || ''
   const upstreamRes = await fetch(url, {
     method: c.req.method,
     headers: {
       ...Object.fromEntries(c.req.raw.headers),
       Authorization: `Bearer ${jwt}`,
       'x-forwarded-for': c.req.header('x-forwarded-for') ?? '',
+      'x-request-id': reqId,
     },
     body: ['GET', 'HEAD'].includes(c.req.method) ? undefined : await c.req.raw.arrayBuffer(),
     signal: controller.signal,
   }).finally(() => clearTimeout(timer))
+
+  c.set('upstreamStatus', upstreamRes.status)
 
   // SSE passthrough
   const ct = upstreamRes.headers.get('content-type') ?? ''
