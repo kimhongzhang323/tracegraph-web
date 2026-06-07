@@ -19,14 +19,18 @@ export const passwordResetLimiter = { limit: (key: string) => makeLimiter('1 h',
 export async function checkLimit(
   limiter: { limit: (key: string) => Promise<{ success: boolean; reset: number }> | undefined },
   key: string,
+  failClosed = false,
 ): Promise<{ ok: boolean; reset: number }> {
   try {
     const p = limiter.limit(key)
     if (!p) return { ok: true, reset: 0 }
     const result = await p
     return { ok: result.success, reset: result.reset }
-  } catch {
-    // If Redis is unavailable (e.g. local dev without Upstash), allow the request
+  } catch (err) {
+    console.error(`Rate limiter error for key ${key} (failClosed: ${failClosed}):`, err)
+    if (failClosed) {
+      return { ok: false, reset: Date.now() + 60000 }
+    }
     return { ok: true, reset: 0 }
   }
 }

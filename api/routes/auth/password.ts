@@ -34,7 +34,7 @@ passwordRouter.post('/register', async (c) => {
   const { email, password } = parsed.data
   const clientIp = ip(c)
 
-  const { ok } = await checkLimit(registerLimiter, clientIp)
+  const { ok } = await checkLimit(registerLimiter, clientIp, true)
   if (!ok) return c.json({ error: 'Too many requests' }, 429)
 
   const existing = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1)
@@ -94,7 +94,7 @@ passwordRouter.post('/login', async (c) => {
 
   if (await isLocked(email)) return c.json({ error: 'Too many requests' }, 429)
 
-  const { ok } = await checkLimit(loginLimiter, `${clientIp}:${email}`)
+  const { ok } = await checkLimit(loginLimiter, `${clientIp}:${email}`, true)
   if (!ok) return c.json({ error: 'Too many requests' }, 429)
 
   const [user] = await db
@@ -125,7 +125,8 @@ passwordRouter.post('/password/forgot', async (c) => {
   const email = String(body?.email ?? '').toLowerCase()
   const clientIp = ip(c)
 
-  await checkLimit(passwordResetLimiter, `${clientIp}:${email}`)
+  const { ok: limitOk } = await checkLimit(passwordResetLimiter, `${clientIp}:${email}`, true)
+  if (!limitOk) return c.json({ error: 'Too many requests' }, 429)
 
   const [user] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1)
   if (user) {

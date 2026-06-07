@@ -19,7 +19,8 @@ magicRouter.post('/magic-link/request', async (c) => {
   if (!email) return c.json({ ok: true }) // always 200
 
   const clientIp = ip(c)
-  await checkLimit(magicLinkLimiter, `${clientIp}:${email}`)
+  const { ok } = await checkLimit(magicLinkLimiter, `${clientIp}:${email}`, true)
+  if (!ok) return c.json({ error: 'Too many requests' }, 429)
 
   const [user] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1)
   if (user) {
