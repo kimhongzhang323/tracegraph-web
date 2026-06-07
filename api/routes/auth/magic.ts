@@ -32,7 +32,7 @@ magicRouter.post('/magic-link/request', async (c) => {
       expiresAt: new Date(Date.now() + 15 * 60 * 1000),
       ip: clientIp,
     })
-    await sendMagicLinkEmail(email, token).catch((err) => console.error('Email sending failed:', err))
+    sendMagicLinkEmail(c, email, token)
     await audit('magic.request', { userId: user.id, ip: clientIp })
   }
 
