@@ -1,3 +1,5 @@
+import type { AuthUser } from '@/contexts/authContext'
+
 /**
  * Environment-aware API client.
  *
@@ -73,6 +75,10 @@ export interface PageResult<T> {
 }
 
 export const api = {
+  auth: {
+    me: () => request<AuthUser>('/api/me'),
+    logout: () => request<void>('/api/auth/logout', { method: 'POST' }),
+  },
   traces: {
     list: (limit = 20, offset = 0) =>
       request<PageResult<string> | string[]>(`/api/traces?limit=${limit}&offset=${offset}`),

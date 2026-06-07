@@ -6,6 +6,9 @@ import { Seo } from '@/components/Seo'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { useTheme } from '@/hooks/useTheme'
 
+import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { PageLoader } from '@/components/PageLoader'
+
 const Home = lazy(() => import('@/pages/Home').then((m) => ({ default: m.Home })))
 const Docs = lazy(() => import('@/pages/Docs').then((m) => ({ default: m.Docs })))
 const TraceExplorer = lazy(() => import('@/pages/TraceExplorer').then((m) => ({ default: m.TraceExplorer })))
@@ -51,7 +54,7 @@ function Layout() {
       <Seo {...seo} />
       <Header route={route} theme={theme} setTheme={setTheme} />
       <main className="flex-1">
-        <Suspense fallback={null}>
+        <Suspense fallback={<PageLoader />}>
           <Routes>
             <Route path="/"                 element={<Home />} />
             <Route path="/docs"             element={<Docs />} />
@@ -80,7 +83,9 @@ function Layout() {
 export function App() {
   return (
     <BrowserRouter>
-      <Layout />
+      <ErrorBoundary>
+        <Layout />
+      </ErrorBoundary>
     </BrowserRouter>
   )
 }

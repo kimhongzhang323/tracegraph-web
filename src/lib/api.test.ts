@@ -123,4 +123,27 @@ describe('api client', () => {
     const result = await api.traces.diff('trace-a', 'trace-b')
     expect(result).toEqual({ added: [], removed: [] })
   })
+
+  it('gets the current authenticated user (me)', async () => {
+    const mockUser = { id: 'u-1', email: 'test@example.com', mfaEnabled: false, backendUrl: null }
+    server.use(
+      http.get('http://localhost/api/me', () =>
+        HttpResponse.json(mockUser),
+      ),
+    )
+    const result = await api.auth.me()
+    expect(result).toEqual(mockUser)
+  })
+
+  it('performs logout via POST', async () => {
+    let called = false
+    server.use(
+      http.post('http://localhost/api/auth/logout', () => {
+        called = true
+        return HttpResponse.json(null)
+      }),
+    )
+    await api.auth.logout()
+    expect(called).toBe(true)
+  })
 })
