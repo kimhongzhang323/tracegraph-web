@@ -3,6 +3,7 @@ import { requireAuth } from '../middleware/session.js'
 import { mintInternalJwt } from '../lib/jwt.js'
 import { db, users } from '../db/index.js'
 import { eq } from 'drizzle-orm'
+import { getCachedResponse, setCachedResponse, invalidateUserCache } from '../lib/cache.js'
 
 export const proxyRouter = new Hono()
 
@@ -10,6 +11,31 @@ const SPRING_BOOT_URL = (process.env.SPRING_BOOT_URL ?? 'http://localhost:8082')
 
 proxyRouter.all('/*', async (c) => {
   const session = requireAuth(c)
+
+  const isGet = ['GET', 'HEAD'].includes(c.req.method)
+  const path = c.req.path
+  const query = c.req.url.includes('?') ? c.req.url.split('?')[1] : ''
+
+  const isCacheable = isGet && (
+    path === '/api/traces' ||
+    path === '/api/graph/mermaid' ||
+    path === '/api/graph/complexity'
+  )
+
+  if (isCacheable) {
+    const cached = await getCachedResponse(session.userId, path, query)
+    if (cached) {
+      c.header('x-proxy-cache', 'HIT')
+      c.header('Content-Type', cached.contentType)
+      c.set('upstreamStatus', cached.status)
+      return c.text(cached.body, cached.status as 200)
+    }
+  }
+
+  const isMutation = !['GET', 'HEAD', 'OPTIONS'].includes(c.req.method)
+  if (isMutation) {
+    await invalidateUserCache(session.userId)
+  }
 
   const jwt = await mintInternalJwt(session.userId, session.email)
 
@@ -58,6 +84,16 @@ proxyRouter.all('/*', async (c) => {
   }
 
   const body = await upstreamRes.text()
+
+  if (isCacheable && upstreamRes.status === 200) {
+    await setCachedResponse(session.userId, path, query, {
+      body,
+      contentType: ct,
+      status: upstreamRes.status,
+    })
+  }
+
+  c.header('x-proxy-cache', 'MISS')
   return c.text(body, upstreamRes.status as 200, {
     'Content-Type': ct,
   })
