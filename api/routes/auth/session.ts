@@ -5,6 +5,7 @@ import { clearAuthCookies, getSessionToken } from '../../lib/cookies.js'
 import { hashToken } from '../../lib/tokens.js'
 import { requireAuth } from '../../middleware/session.js'
 import { audit } from '../../lib/audit.js'
+import { getRedis } from '../../lib/redis.js'
 
 export const sessionRouter = new Hono()
 
@@ -16,6 +17,10 @@ sessionRouter.post('/logout', async (c) => {
   if (token) {
     const now = new Date()
     const tokenHash = hashToken(token)
+    const redis = getRedis()
+    if (redis) {
+      await redis.del(`sess:${tokenHash}`).catch(() => {})
+    }
     const [sess] = await db.select({ id: sessions.id, userId: sessions.userId }).from(sessions).where(eq(sessions.sessionTokenHash, tokenHash)).limit(1)
     if (sess) {
       await db.update(sessions).set({ revokedAt: now }).where(eq(sessions.id, sess.id))
@@ -28,6 +33,14 @@ sessionRouter.post('/logout', async (c) => {
 
 sessionRouter.post('/logout-all', async (c) => {
   const session = requireAuth(c)
+  const token = getSessionToken(c)
+  if (token) {
+    const tokenHash = hashToken(token)
+    const redis = getRedis()
+    if (redis) {
+      await redis.del(`sess:${tokenHash}`).catch(() => {})
+    }
+  }
   await db.update(sessions).set({ revokedAt: new Date() }).where(eq(sessions.userId, session.userId))
   clearAuthCookies(c)
   await audit('logout.all', { userId: session.userId, ip: ip(c) })

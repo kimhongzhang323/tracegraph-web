@@ -12,7 +12,7 @@ import type { AuthUser } from '@/contexts/authContext'
 
 const BASE = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
 
-const REQUEST_TIMEOUT_MS = 10_000
+const REQUEST_TIMEOUT_MS = 30_000
 
 // Deduplicates in-flight GET requests by URL — prevents concurrent re-renders
 // from fanning out identical fetches.
