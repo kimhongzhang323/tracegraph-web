@@ -11,6 +11,7 @@ The React frontend for **TraceGraph** — a typed execution-graph runtime for th
 - **Trace Explorer** — step-by-step execution timeline with state before/after diffs, live event streaming, and side-by-side comparison of two traces
 - **Replay & Fork** — re-run any trace from an arbitrary checkpoint; view the exact state at each step
 - **Graph Studio** — interactive canvas (topology, relations, execution lenses) with complexity metrics and export to Mermaid/PlantUML
+- **Sandbox** — a self-contained, in-browser runtime simulation: run/replay/fork presets, inject failures, and inspect state — no backend required
 - **API Reference** — browsable REST documentation for the Spring Boot backend
 - **Authentication** — email/password, Google & GitHub OAuth, magic links, TOTP-based MFA, and WebAuthn passkeys
 - **Dark mode** — class-based, persisted per-device
@@ -18,6 +19,8 @@ The React frontend for **TraceGraph** — a typed execution-graph runtime for th
 ---
 
 ## Tech Stack
+
+**Frontend (browser)**
 
 | Concern | Library |
 |---------|---------|
@@ -27,8 +30,167 @@ The React frontend for **TraceGraph** — a typed execution-graph runtime for th
 | Routing | React Router v6 |
 | Graph rendering | `@xyflow/react` + `d3-force` |
 | Icons | `lucide-react` |
-| Auth | Custom (`/api/auth/*`) + `@simplewebauthn/browser` |
-| Testing | Vitest · Playwright · React Testing Library |
+| Passkeys | `@simplewebauthn/browser` |
+
+**API / backend-for-frontend (`api/`)**
+
+| Concern | Library |
+|---------|---------|
+| HTTP framework | Hono (deployed as Vercel Functions) |
+| Database | Neon Postgres + Drizzle ORM |
+| Sessions & CSRF | Signed `__Host-*` cookies |
+| Password hashing | Argon2 (`@node-rs/argon2`) |
+| MFA / passkeys | `otpauth` (TOTP) · `@simplewebauthn/server` |
+| Internal auth | Ed25519 JWT (`jose`) → Spring Boot |
+| Rate limiting | Upstash Redis (`@upstash/ratelimit`) |
+| Email | Resend (magic links, verification) |
+| Validation | Zod |
+
+**Tooling** — Vitest · Playwright · React Testing Library · MSW · ESLint · Prettier
+
+---
+
+## Architecture
+
+TraceGraph Web is **three tiers**. The browser never talks to the Spring Boot
+runtime directly — every request goes through a Node backend-for-frontend (BFF)
+that owns authentication and proxies data calls with a signed service token.
+
+```mermaid
+flowchart LR
+    subgraph T1["Tier 1 · Browser"]
+        SPA["React SPA (src/)<br/>Vite static bundle<br/>pages · AuthProvider · hooks<br/>lib/api.ts client"]
+    end
+
+    subgraph T2["Tier 2 · Node BFF — Hono (api/)"]
+        direction TB
+        MW["Middleware chain<br/>cors → securityHeaders → session → csrf → requestSize"]
+        AUTH["/api/auth/*<br/>password · OAuth · magic · MFA · passkeys/"]
+        ME["/api/me<br/>profile/"]
+        PROXY["/api/traces/*<br/>proxy + JWT mint/"]
+        MW --> AUTH & ME & PROXY
+    end
+
+    subgraph T3["Tier 3 · Spring Boot (separate repo)"]
+        SB["TraceGraph runtime<br/>/tracegraph/traces/*"]
+    end
+
+    DB[("Neon Postgres<br/>users · sessions · MFA")]
+    REDIS[("Upstash Redis<br/>rate limits")]
+
+    SPA -- "XHR / SSE<br/>(cookies + CSRF)" --> MW
+    AUTH --> DB
+    AUTH --> REDIS
+    ME --> DB
+    PROXY -- "Ed25519 JWT<br/>(Bearer)" --> SB
+
+    classDef tier fill:#f6f8fa,stroke:#d0d7de,color:#1f2328;
+    class T1,T2,T3 tier;
+```
+
+**Tier 1 — React SPA (`src/`).** A static Vite bundle. Pages are lazy-loaded in
+`App.tsx`; `AuthProvider` (`src/contexts/`) loads the current user from `/api/me`
+on mount and gates protected routes via `<ProtectedRoute>`. All HTTP goes through
+the single client in `src/lib/api.ts` — no `fetch`/`axios` in components.
+
+**Tier 2 — Node BFF (`api/`).** A Hono app exposing `/api/*`. Its middleware chain
+(`api/index.ts`) applies CORS → security headers → session → CSRF → request-size
+limits to every request. It is the only tier that holds secrets, talks to the
+database (Neon, via Drizzle), and rate-limits (Upstash). It handles **all auth**
+locally and **proxies** trace data upstream.
+
+**Tier 3 — Spring Boot (separate `TraceGraph` repo).** The actual typed
+execution-graph runtime. It only accepts requests bearing a short-lived Ed25519
+JWT minted by the BFF, so it trusts identity without re-implementing login.
+
+### Request flows
+
+**Authentication.** The browser posts to `/api/auth/*` (password, OAuth callback,
+magic-link, MFA challenge, passkey). On success the BFF sets a signed
+`__Host-session` cookie plus a `__Host-csrf` cookie. `AuthProvider` then calls
+`/api/me` to hydrate the user. Mutating requests echo the CSRF token in the
+`x-csrf-token` header (handled automatically by `src/lib/api.ts`).
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as User
+    participant SPA as React SPA
+    participant BFF as Node BFF (Hono)
+    participant DB as Neon Postgres
+
+    U->>SPA: Enter credentials
+    SPA->>BFF: POST /api/auth/login
+    BFF->>DB: Verify user (Argon2)
+    DB-->>BFF: User record
+    alt MFA enabled
+        BFF-->>SPA: 200 { mfaRequired: true }
+        U->>SPA: Enter TOTP code
+        SPA->>BFF: POST /api/auth/mfa/verify
+        BFF->>DB: Validate TOTP
+    end
+    BFF-->>SPA: Set-Cookie __Host-session + __Host-csrf
+    SPA->>BFF: GET /api/me (cookie)
+    BFF->>DB: Load profile
+    DB-->>BFF: Profile
+    BFF-->>SPA: 200 { user }
+    Note over SPA: AuthProvider hydrates,<br/>ProtectedRoute unlocks
+```
+
+**Trace data.** A call like `api.traces.list()` hits `/api/traces/*` on the BFF.
+`api/routes/proxy.ts` requires a valid session, **mints an Ed25519 JWT** for the
+user, rewrites the path to `/tracegraph/traces/*`, and forwards it to
+`SPRING_BOOT_URL`. Server-sent event streams (live traces) are passed through
+unbuffered, so `useLiveTraces` gets real-time updates with auto-reconnect/backoff.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant SPA as React SPA
+    participant BFF as Node BFF (proxy.ts)
+    participant SB as Spring Boot
+
+    Note over SPA: useLiveTraces() on mount
+
+    SPA->>BFF: GET /api/traces (session cookie)
+    BFF->>BFF: requireAuth() · mint Ed25519 JWT
+    BFF->>SB: GET /tracegraph/traces<br/>Authorization: Bearer <jwt>
+    SB-->>BFF: 200 trace list
+    BFF-->>SPA: 200 trace list
+
+    SPA->>BFF: GET /api/traces/stream (SSE)
+    BFF->>SB: GET /tracegraph/traces/stream (Bearer)
+    loop live events
+        SB-->>BFF: event: Complete
+        BFF-->>SPA: passthrough (text/event-stream)
+        SPA->>SPA: refetch list
+    end
+
+    Note over SPA,SB: on error → exponential backoff,<br/>reconnect (1s → 30s cap)
+```
+
+**Demo / offline mode.** When the backend is unreachable, hooks fall back to seed
+data in `src/data/` so the UI stays fully explorable. The `/sandbox` route goes
+further: a self-contained, in-browser runtime simulation (presets, replay, fork,
+failure injection, waterfall) that needs no backend at all. Its run lifecycle:
+
+```mermaid
+stateDiagram-v2
+    [*] --> idle
+    idle --> running: Run / Space
+    running --> paused: Space / Step / scrub
+    paused --> running: resume
+    running --> completed: reached end
+    running --> failed: injected failure
+    completed --> running: re-run (reset)
+    failed --> running: re-run (reset)
+    paused --> idle: jump to step 0
+    completed --> [*]: Fork → new branched run
+```
+
+**Per-user backend override.** Authenticated users can point at their own Spring
+Boot instance — `useBackendUrl` saves a `backendUrl` on their profile via
+`/api/me`, which the proxy honors per request.
 
 ---
 
@@ -55,11 +217,14 @@ cp .env.example .env.local
 
 Edit `.env.local`:
 
+> `VITE_*` vars are read by the browser bundle; everything else is read by the
+> Node BFF (`api/`) only and is never shipped to the client.
+
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `VITE_API_BASE_URL` | No | Backend URL. Leave empty when served by Spring Boot on the same origin. |
+| `VITE_API_BASE_URL` | No | BFF origin. Leave empty for same-origin (recommended). |
 | `VITE_SITE_URL` | No | Canonical origin for SEO (e.g. `https://www.tracegraph.site`). |
-| `VITE_CLERK_PUBLISHABLE_KEY` | Yes | Clerk publishable key for auth UI. |
+| `DATABASE_URL` | Yes | Neon Postgres connection string (users, sessions, MFA). |
 | `SESSION_SECRET` | Yes | 32-character random string for session signing. |
 | `GOOGLE_OAUTH_CLIENT_ID` / `_SECRET` | No | Google OAuth credentials. |
 | `GITHUB_OAUTH_CLIENT_ID` / `_SECRET` | No | GitHub OAuth credentials. |
@@ -74,24 +239,39 @@ Edit `.env.local`:
 
 ```bash
 npm run dev       # Vite dev server at http://localhost:5173
+npm run dev:api   # Hono BFF at http://localhost:3000 (Vite proxies /api/* here)
 npm run build     # Type-check + production build
 npm run lint      # ESLint (zero warnings)
 npm run format    # Prettier
 ```
+
+For a full local stack, run `npm run dev` and `npm run dev:api` together: the
+Vite dev server proxies every `/api/*` request to the BFF on port 3000, which in
+turn proxies trace data to the Spring Boot backend at `SPRING_BOOT_URL`.
 
 ---
 
 ## Project Structure
 
 ```
-src/
-  pages/        # Route-level components (lazy-loaded)
-  components/   # Shared UI primitives
-  hooks/        # useTheme, useSession, useLiveTraces, useBackendUrl
-  contexts/     # Auth context
-  lib/          # API client (api.ts), auth helpers, utilities
-  types/        # Shared TypeScript types
-  data/         # Mock/seed data for demo mode
+src/                  # Tier 1 — React SPA (browser)
+  pages/              #   Route-level components (lazy-loaded)
+    sandbox/          #   In-browser runtime simulation (the /sandbox demo)
+  components/         #   Shared UI primitives
+  hooks/              #   useTheme, useSession, useLiveTraces, useBackendUrl
+  contexts/           #   Auth context + AuthProvider
+  lib/                #   API client (api.ts), auth helpers, utilities
+  types/              #   Shared TypeScript types
+  data/               #   Mock/seed data for demo mode
+
+api/                  # Tier 2 — Node backend-for-frontend (Hono)
+  index.ts            #   App + middleware chain (entry: Vercel Function)
+  dev.ts              #   Local dev server (npm run dev:api)
+  middleware/         #   cors, securityHeaders, session, csrf, requestSize
+  routes/             #   auth/* (password, oauth, magic, passkey, mfa, session)
+                      #   me.ts (profile) · proxy.ts (→ Spring Boot)
+  lib/                #   jwt, argon2, mfa, webauthn, oauth, email, ratelimit…
+  db/                 #   Drizzle schema + migrations (Neon Postgres)
 ```
 
 All pages are lazy-loaded via `React.lazy`. Auth-gated routes use `<ProtectedRoute>` — auth checks live in context, not in page components.
@@ -105,6 +285,7 @@ All pages are lazy-loaded via `React.lazy`. Auth-gated routes use `<ProtectedRou
 | `/` | Public | Landing page |
 | `/trace` | Protected | Trace Explorer |
 | `/studio` | Protected | Graph Studio |
+| `/sandbox` | Public | In-browser runtime demo (no backend) |
 | `/docs` | Public | Documentation |
 | `/api` | Public | API Reference |
 | `/changelog` | Public | Release notes |
@@ -115,17 +296,22 @@ All pages are lazy-loaded via `React.lazy`. Auth-gated routes use `<ProtectedRou
 
 ## Backend
 
-This frontend talks to a Spring Boot backend. Key endpoints:
+The browser calls the **BFF**, never Spring Boot directly. The BFF authenticates
+the session, then proxies trace endpoints upstream (`/api/traces/*` →
+`/tracegraph/traces/*`) with a minted Ed25519 JWT. Key endpoints:
 
 ```
-GET    /api/traces          list traces
-GET    /api/traces/:id      trace detail
+GET    /api/traces             list traces
+GET    /api/traces/:id         trace detail
 POST   /api/traces/:id/replay  replay / fork from step
+GET    /api/traces/stream      live event stream (SSE, passed through)
 ```
 
 See `src/pages/ApiReference.tsx` for the full documented contract, or visit `/api` in the running app.
 
-The API client (`src/lib/api.ts`) handles CSRF token injection, request deduplication, and relative vs. absolute base URL configuration.
+The client (`src/lib/api.ts`) handles CSRF token injection, in-flight GET
+deduplication, request timeouts, and relative-vs-absolute base URL configuration.
+The proxy logic lives in `api/routes/proxy.ts`.
 
 ---
 
