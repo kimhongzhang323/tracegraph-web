@@ -1,10 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { api } from '@/lib/api'
+import { api } from '@/lib/api.js'
+import { sseManager } from '@/lib/sse.js'
 import type { TraceSummary } from '@/types'
 import { MOCK_TRACE_LIST } from '@/data/mock'
-
-const BASE_BACKOFF_MS = 1_000
-const MAX_BACKOFF_MS = 30_000
 
 function toSummaries(data: unknown): TraceSummary[] {
   const ids: string[] = Array.isArray(data) ? data : ((data as { items?: string[] }).items ?? [])
@@ -13,10 +11,7 @@ function toSummaries(data: unknown): TraceSummary[] {
 
 export function useLiveTraces(): TraceSummary[] {
   const [list, setList] = useState<TraceSummary[]>(MOCK_TRACE_LIST)
-  const backoffRef = useRef(BASE_BACKOFF_MS)
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const esRef = useRef<EventSource | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -28,7 +23,6 @@ export function useLiveTraces(): TraceSummary[] {
           if (cancelled) return
           const summaries = toSummaries(data)
           if (summaries.length > 0) setList(summaries)
-          backoffRef.current = BASE_BACKOFF_MS
         })
         .catch(() => {
           // backend not available — keep current data
@@ -42,55 +36,18 @@ export function useLiveTraces(): TraceSummary[] {
       }, 500)
     }
 
-    function openStream() {
-      if (cancelled || document.visibilityState === 'hidden') return
-      esRef.current?.close()
-
-      const es = api.traces.stream()
-      esRef.current = es
-
-      es.addEventListener('Complete', () => {
-        fetchListDebounced()
-      })
-
-      es.onerror = () => {
-        es.close()
-        scheduleReconnect()
-      }
-    }
-
-    function scheduleReconnect() {
-      if (cancelled) return
-      const currentBackoff = backoffRef.current
-      const jitter = Math.random() * 0.3 * currentBackoff
-      const delay = currentBackoff + jitter
-
-      timerRef.current = setTimeout(() => {
-        backoffRef.current = Math.min(currentBackoff * 2, MAX_BACKOFF_MS)
-        openStream()
-      }, delay)
-    }
-
-    function onVisibilityChange() {
-      if (document.visibilityState === 'visible') {
-        fetchList()
-        openStream()
-      } else {
-        esRef.current?.close()
-        esRef.current = null
-      }
-    }
-
     fetchList()
-    openStream()
-    document.addEventListener('visibilitychange', onVisibilityChange)
+
+    const unsubscribe = sseManager.subscribe((e) => {
+      if (e.type === 'Complete') {
+        fetchListDebounced()
+      }
+    })
 
     return () => {
       cancelled = true
-      if (timerRef.current) clearTimeout(timerRef.current)
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current)
-      esRef.current?.close()
-      document.removeEventListener('visibilitychange', onVisibilityChange)
+      unsubscribe()
     }
   }, [])
 

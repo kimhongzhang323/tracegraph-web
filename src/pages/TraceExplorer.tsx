@@ -5,6 +5,7 @@ import { Seo } from '@/components/Seo'
 import { useBackendUrl } from '@/hooks/useBackendUrl'
 import { MOCK_TRACE, MOCK_TRACE_LIST } from '@/data/mock'
 import { api } from '@/lib/api'
+import { sseManager } from '@/lib/sse'
 import type { ExecutionTrace, TraceDiff, TraceStep, TraceSummary } from '@/types'
 import { useToast } from '@/contexts/ToastContext'
 
@@ -117,18 +118,16 @@ export function TraceExplorer() {
   }, [page])
 
   useEffect(() => {
-    const es = api.traces.stream()
-    if (!es) return
     const t0 = Date.now()
-    es.onmessage = (e) => {
+    const unsubscribe = sseManager.subscribe((e) => {
       try {
         const payload = JSON.parse(e.data) as Record<string, unknown>
         const type = (payload.type as string) ?? e.type ?? 'event'
         const node = (payload.nodeName as string) ?? ''
         setLiveEvents((prev) => [...prev.slice(-49), { t: Date.now() - t0, type, node }])
       } catch { /* non-json event */ }
-    }
-    return () => es.close()
+    })
+    return unsubscribe
   }, [])
 
   function loadTrace(id: string) {
