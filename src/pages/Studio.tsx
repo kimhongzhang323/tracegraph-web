@@ -6,6 +6,7 @@ import { useBackendUrl } from '@/hooks/useBackendUrl'
 import { EDGES, STUDIO_NODES } from '@/data/mock'
 import { api } from '@/lib/api'
 import type { Edge, GraphComplexity, LensMode, StudioNode } from '@/types'
+import { useToast } from '@/contexts/ToastContext'
 
 function cleanNode(part: string): { id: string; label?: string } {
   const match = part.trim().match(/^(\w+)(?:\["([^"]+)"\]|\[([^\]]+)\]|\("([^"]+)"\)|\(([^)]+)\)|{([^}]+)})?/)
@@ -409,6 +410,7 @@ function BackendBanner({ isLive, onRefresh }: { isLive: boolean; onRefresh: () =
 }
 
 function StudioHeader({ complexity, mermaid, nodeCount, edgeCount }: { complexity: GraphComplexity | null; mermaid: string | null; nodeCount: number; edgeCount: number }) {
+  const { toast } = useToast()
   return (
     <div className="rounded-[20px] border hairline bg-white dark:bg-ink-950 px-4 py-2.5 flex items-center gap-3 flex-wrap">
       <div className="flex items-center gap-2.5 min-w-0 text-[12px] text-ink-700 dark:text-ink-300">
@@ -435,7 +437,12 @@ function StudioHeader({ complexity, mermaid, nodeCount, edgeCount }: { complexit
         >
           <option value="react-agent">react-agent</option>
         </select>
-        <Button size="sm" variant="ghost" icon="file-code" onClick={() => mermaid && alert(mermaid)}>
+        <Button size="sm" variant="ghost" icon="file-code" onClick={() => {
+          if (mermaid) {
+            navigator.clipboard.writeText(mermaid)
+            toast('Mermaid markup copied to clipboard!', 'success')
+          }
+        }}>
           Mermaid
         </Button>
         <Button size="sm" variant="ghost" icon="file-code">

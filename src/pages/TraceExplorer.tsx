@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Panel, Badge, Button } from '@/components'
+import { Panel, Badge, Button, ConfirmModal } from '@/components'
 import { BackendConnect } from '@/components'
 import { Seo } from '@/components/Seo'
 import { useBackendUrl } from '@/hooks/useBackendUrl'
 import { MOCK_TRACE, MOCK_TRACE_LIST } from '@/data/mock'
 import { api } from '@/lib/api'
 import type { ExecutionTrace, TraceDiff, TraceStep, TraceSummary } from '@/types'
+import { useToast } from '@/contexts/ToastContext'
 
 type ViewMode = 'inspect' | 'diff'
 
@@ -68,6 +69,8 @@ function normaliseTrace(raw: unknown): ExecutionTrace {
 
 export function TraceExplorer() {
   const { backendUrl, clear } = useBackendUrl()
+  const { toast } = useToast()
+  const [deleteId, setDeleteId] = useState<string | null>(null)
   const [activeIdx, setActiveIdx] = useState(0)
   const [trace, setTrace] = useState<ExecutionTrace>(MOCK_TRACE)
   const [traceList, setTraceList] = useState<TraceSummary[]>(MOCK_TRACE_LIST)
@@ -125,17 +128,21 @@ export function TraceExplorer() {
   }
 
   function handleDelete(id: string) {
-    if (!confirm(`Delete trace ${id.slice(0, 12)}…?`)) return
+    setDeleteId(id)
+  }
+
+  function handleDeleteConfirm(id: string) {
     api.traces
       .delete(id)
       .then(() => {
+        toast('Trace deleted successfully', 'success')
         api.traces.list(20).then((data) => {
           const ids: string[] = Array.isArray(data) ? (data as string[]) : []
           setTraceList(ids.map((i) => ({ id: i, graph: 'graph', status: 'COMPLETED' })))
           if (ids.length > 0) loadTrace(ids[0])
         }).catch(() => {})
       })
-      .catch(() => alert(`DELETE /tracegraph/traces/${id} failed`))
+      .catch(() => toast(`Delete trace ${id.slice(0, 12)} failed`, 'error'))
   }
 
   function handleDiff() {
@@ -144,7 +151,7 @@ export function TraceExplorer() {
     api.traces
       .diff(diffIdA, diffIdB)
       .then((r) => { setDiffResult(r as TraceDiff); setDiffLoading(false) })
-      .catch(() => { alert('Diff failed'); setDiffLoading(false) })
+      .catch(() => { toast('Diff failed', 'error'); setDiffLoading(false) })
   }
 
   if (!backendUrl) return <BackendConnect />
@@ -217,6 +224,19 @@ export function TraceExplorer() {
           <Logs trace={trace} liveEvents={liveEvents} />
         </>
       )}
+      <ConfirmModal
+        isOpen={deleteId !== null}
+        title="Delete Execution Trace"
+        message={`Are you sure you want to delete trace ${deleteId?.slice(0, 12)}...? This action cannot be undone.`}
+        confirmText="Delete"
+        onConfirm={() => {
+          if (deleteId) {
+            handleDeleteConfirm(deleteId)
+            setDeleteId(null)
+          }
+        }}
+        onCancel={() => setDeleteId(null)}
+      />
     </div>
   )
 }
@@ -312,14 +332,15 @@ function TopBar({ trace, traceList, activeIdx, onLoad, onDelete }: {
   onLoad: (id: string) => void
   onDelete: (id: string) => void
 }) {
+  const { toast } = useToast()
   const step = trace.steps[activeIdx] ?? trace.steps[0]
   const statusTone = trace.status === 'FAILED' ? 'err' : trace.status === 'COMPLETED' ? 'ok' : 'warn'
 
   function handleFork() {
     api.traces
       .replay(trace.executionId, activeIdx)
-      .then((r) => alert(`Forked → new executionId: ${(r as { executionId: string }).executionId}`))
-      .catch(() => alert(`POST /tracegraph/traces/${trace.executionId}/replay?step=${activeIdx}`))
+      .then((r) => toast(`Forked → new executionId: ${(r as { executionId: string }).executionId}`, 'success'))
+      .catch(() => toast(`Failed to fork trace replay`, 'error'))
   }
 
   return (
