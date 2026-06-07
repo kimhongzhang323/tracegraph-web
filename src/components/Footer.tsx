@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { StatusDot } from './StatusDot'
 
 export function Footer() {
@@ -23,7 +24,11 @@ export function Footer() {
             <ul className="space-y-2">
               {col.items.map(([label, href]) => (
                 <li key={label}>
-                  <a href={href} className="text-[13.5px] text-ink-600 dark:text-ink-400 hover:text-ink-950 dark:hover:text-white">{label}</a>
+                  {href.startsWith('/') ? (
+                    <Link to={href} className="text-[13.5px] text-ink-600 dark:text-ink-400 hover:text-ink-950 dark:hover:text-white">{label}</Link>
+                  ) : (
+                    <a href={href} className="text-[13.5px] text-ink-600 dark:text-ink-400 hover:text-ink-950 dark:hover:text-white">{label}</a>
+                  )}
                 </li>
               ))}
             </ul>

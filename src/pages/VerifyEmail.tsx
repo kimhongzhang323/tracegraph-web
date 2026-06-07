@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useSearchParams, useNavigate } from 'react-router-dom'
+import { useSearchParams, useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '@/contexts/authContext'
 
 export function VerifyEmail() {
@@ -32,7 +32,7 @@ export function VerifyEmail() {
       <div className="w-full max-w-sm bg-white dark:bg-ink-950 border border-ink-200 dark:border-ink-800 rounded-xl shadow-sm p-8 text-center">
         {status === 'loading' && <p className="text-ink-500 text-sm">Verifying…</p>}
         {status === 'ok' && <p className="text-ink-950 dark:text-white font-medium">Email verified! Redirecting…</p>}
-        {status === 'error' && <p className="text-red-600 dark:text-red-400 text-sm">Invalid or expired link. <a href="/sign-in" className="underline">Sign in</a></p>}
+        {status === 'error' && <p className="text-red-600 dark:text-red-400 text-sm">Invalid or expired link. <Link to="/sign-in" className="underline">Sign in</Link></p>}
       </div>
     </div>
   )
