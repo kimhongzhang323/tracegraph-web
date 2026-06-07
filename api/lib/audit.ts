@@ -27,12 +27,15 @@ export async function audit(
   event: AuditEvent,
   opts: { userId?: string; ip?: string; ua?: string; meta?: Record<string, unknown> } = {},
 ) {
-  // fire-and-forget; never let audit failures break auth flows
-  db.insert(auditLog).values({
-    userId: opts.userId ?? null,
-    event,
-    ip: opts.ip,
-    ua: opts.ua,
-    meta: opts.meta ?? null,
-  }).catch(() => {})
+  try {
+    await db.insert(auditLog).values({
+      userId: opts.userId ?? null,
+      event,
+      ip: opts.ip,
+      ua: opts.ua,
+      meta: opts.meta ?? null,
+    })
+  } catch (err) {
+    console.error(`Failed to write audit log for event ${event}:`, err)
+  }
 }
