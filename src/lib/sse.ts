@@ -92,6 +92,21 @@ class SSEManager {
       this.es = null
     }
   }
+
+  /** For testing purposes only to ensure test isolation */
+  reset() {
+    this.disconnect()
+    this.listeners.clear()
+    if (this.closeTimer) {
+      clearTimeout(this.closeTimer)
+      this.closeTimer = null
+    }
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer)
+      this.reconnectTimer = null
+    }
+    this.backoff = 1000
+  }
 }
 
 export const sseManager = new SSEManager()

@@ -146,4 +146,38 @@ describe('api client', () => {
     await api.auth.logout()
     expect(called).toBe(true)
   })
+
+  describe('caching', () => {
+    it('returns undefined if endpoint has not been requested/cached yet', () => {
+      expect(api.getCached('/api/traces/uncached-id')).toBeUndefined()
+      expect(api.traces.getCached('uncached-id')).toBeUndefined()
+      expect(api.traces.listCached(999, 999)).toBeUndefined()
+    })
+
+    it('caches GET response upon successful request', async () => {
+      const traceData = { id: 'trace-cached-1', steps: ['step1'] }
+      server.use(
+        http.get('http://localhost/api/traces/trace-cached-1', () =>
+          HttpResponse.json(traceData),
+        ),
+      )
+
+      await api.traces.get('trace-cached-1')
+      const cached = api.traces.getCached('trace-cached-1')
+      expect(cached).toEqual(traceData)
+    })
+
+    it('caches trace list pagination response upon successful request', async () => {
+      const mockListResponse = { items: ['trace-a', 'trace-b'], total: 2 }
+      server.use(
+        http.get('http://localhost/api/traces', () =>
+          HttpResponse.json(mockListResponse),
+        ),
+      )
+
+      await api.traces.list(20, 0)
+      const cachedList = api.traces.listCached(20, 0)
+      expect(cachedList).toEqual(mockListResponse)
+    })
+  })
 })
