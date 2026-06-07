@@ -2,7 +2,10 @@ import { useEffect, useState } from 'react'
 
 export function useTheme() {
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
-    return (localStorage.getItem('tg-theme') as 'light' | 'dark') ?? 'light'
+    const saved = localStorage.getItem('tg-theme')
+    if (saved === 'light' || saved === 'dark') return saved
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark'
+    return 'light'
   })
   useEffect(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark')

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { useTheme } from './useTheme'
 
@@ -42,5 +42,26 @@ describe('useTheme', () => {
     const { result } = renderHook(() => useTheme())
     expect(typeof result.current[0]).toBe('string')
     expect(typeof result.current[1]).toBe('function')
+  })
+
+  it('falls back to OS preferences (dark) when localStorage is empty', () => {
+    const originalMatchMedia = window.matchMedia
+    window.matchMedia = vi.fn().mockImplementation((query) => ({
+      matches: query === '(prefers-color-scheme: dark)',
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }))
+
+    try {
+      const { result } = renderHook(() => useTheme())
+      expect(result.current[0]).toBe('dark')
+    } finally {
+      window.matchMedia = originalMatchMedia
+    }
   })
 })
