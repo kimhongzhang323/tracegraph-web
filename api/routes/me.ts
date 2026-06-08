@@ -33,10 +33,27 @@ meRouter.get('/sessions', async (c) => {
 
 meRouter.delete('/sessions/:id', async (c) => {
   const session = requireAuth(c)
+  const sessionId = c.req.param('id')
+
+  // Retrieve session token hash to invalidate Redis cache
+  const [sess] = await db
+    .select({ tokenHash: sessions.sessionTokenHash })
+    .from(sessions)
+    .where(and(eq(sessions.id, sessionId), eq(sessions.userId, session.userId)))
+    .limit(1)
+
+  if (sess) {
+    const { getRedis } = await import('../lib/redis.js')
+    const redis = getRedis()
+    if (redis) {
+      await redis.del(`sess:${sess.tokenHash}`).catch(() => {})
+    }
+  }
+
   await db
     .update(sessions)
     .set({ revokedAt: new Date() })
-    .where(and(eq(sessions.id, c.req.param('id')), eq(sessions.userId, session.userId)))
+    .where(and(eq(sessions.id, sessionId), eq(sessions.userId, session.userId)))
   return c.json({ ok: true })
 })
 

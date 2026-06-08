@@ -159,6 +159,19 @@ passwordRouter.post('/password/reset', async (c) => {
   await db.update(users).set({ passwordHash }).where(eq(users.id, row.userId))
   await db.update(emailTokens).set({ usedAt: now }).where(eq(emailTokens.id, row.id))
   // Revoke all existing sessions after password reset
+  const activeSessions = await db
+    .select({ tokenHash: sessions.sessionTokenHash })
+    .from(sessions)
+    .where(and(eq(sessions.userId, row.userId), isNull(sessions.revokedAt)))
+
+  const { getRedis } = await import('../../lib/redis.js')
+  const redis = getRedis()
+  if (redis && activeSessions.length) {
+    for (const s of activeSessions) {
+      await redis.del(`sess:${s.tokenHash}`).catch(() => {})
+    }
+  }
+
   await db.update(sessions).set({ revokedAt: now }).where(eq(sessions.userId, row.userId))
   await audit('password.reset.complete', { userId: row.userId })
   return c.json({ ok: true })

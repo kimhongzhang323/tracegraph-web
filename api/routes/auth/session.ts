@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import { db, sessions } from '../../db/index.js'
-import { eq } from 'drizzle-orm'
+import { eq, and, isNull } from 'drizzle-orm'
 import { clearAuthCookies, getSessionToken } from '../../lib/cookies.js'
 import { hashToken } from '../../lib/tokens.js'
 import { requireAuth } from '../../middleware/session.js'
@@ -33,14 +33,20 @@ sessionRouter.post('/logout', async (c) => {
 
 sessionRouter.post('/logout-all', async (c) => {
   const session = requireAuth(c)
-  const token = getSessionToken(c)
-  if (token) {
-    const tokenHash = hashToken(token)
-    const redis = getRedis()
-    if (redis) {
-      await redis.del(`sess:${tokenHash}`).catch(() => {})
+  
+  // Fetch active sessions of the user to invalidate their Redis keys
+  const activeSessions = await db
+    .select({ tokenHash: sessions.sessionTokenHash })
+    .from(sessions)
+    .where(and(eq(sessions.userId, session.userId), isNull(sessions.revokedAt)))
+  
+  const redis = getRedis()
+  if (redis && activeSessions.length) {
+    for (const s of activeSessions) {
+      await redis.del(`sess:${s.tokenHash}`).catch(() => {})
     }
   }
+
   await db.update(sessions).set({ revokedAt: new Date() }).where(eq(sessions.userId, session.userId))
   clearAuthCookies(c)
   await audit('logout.all', { userId: session.userId, ip: ip(c) })
