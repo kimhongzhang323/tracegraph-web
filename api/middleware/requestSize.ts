@@ -3,12 +3,19 @@ import type { Context, Next } from 'hono'
 const MAX_BODY_BYTES = 64 * 1024 // 64 KB
 
 export async function requestSizeLimit(c: Context, next: Next) {
-  const contentLength = Number(c.req.header('content-length') ?? '0')
-  if (contentLength > MAX_BODY_BYTES) {
-    return c.json({ error: 'Request body too large' }, 413)
+  const contentLengthHeader = c.req.header('content-length')
+  
+  if (contentLengthHeader !== undefined) {
+    const contentLength = Number(contentLengthHeader)
+    if (!isNaN(contentLength) && contentLength > 0) {
+      if (contentLength > MAX_BODY_BYTES) {
+        return c.json({ error: 'Request body too large' }, 413)
+      }
+      return next()
+    }
   }
 
-  // Handle stream checks for POST/PUT/PATCH to prevent chunked/bypassable DoS
+  // Handle stream checks for POST/PUT/PATCH when content-length is missing/unreliable
   if (['POST', 'PUT', 'PATCH'].includes(c.req.method) && c.req.raw.body) {
     try {
       const cloned = c.req.raw.clone()
