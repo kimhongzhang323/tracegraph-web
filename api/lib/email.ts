@@ -3,12 +3,26 @@ import { Resend } from 'resend'
 
 function getResend() {
   const key = process.env.RESEND_API_KEY
-  if (!key) return null
+  if (!key) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('RESEND_API_KEY is missing in production')
+    }
+    return null
+  }
   return new Resend(key)
 }
 
 const FROM   = () => process.env.EMAIL_FROM    ?? 'noreply@tracegraph.site'
-const ORIGIN = () => process.env.WEBAUTHN_ORIGIN ?? 'http://localhost:5173'
+const ORIGIN = () => {
+  const origin = process.env.WEBAUTHN_ORIGIN
+  if (!origin) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('WEBAUTHN_ORIGIN is missing in production')
+    }
+    return 'http://localhost:5173'
+  }
+  return origin
+}
 
 async function withRetry(fn: () => Promise<unknown>, retries = 3, delay = 1000) {
   for (let i = 0; i < retries; i++) {
