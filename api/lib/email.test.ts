@@ -23,7 +23,7 @@ describe('email library', () => {
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
     const mockContext = {} as any
 
-    const { sendVerificationEmail } = await import('./email')
+    const { sendVerificationEmail } = await import('./email.js')
     sendVerificationEmail(mockContext, 'dev@example.com', 'token-123')
 
     expect(consoleSpy).toHaveBeenCalledWith(
@@ -37,7 +37,7 @@ describe('email library', () => {
     process.env.RESEND_API_KEY = 're_123'
 
     const mockContext = {} as any
-    const { sendVerificationEmail } = await import('./email')
+    const { sendVerificationEmail } = await import('./email.js')
     expect(() => sendVerificationEmail(mockContext, 'prod@example.com', 'token-123')).toThrow(
       'WEBAUTHN_ORIGIN is missing in production'
     )
@@ -49,7 +49,7 @@ describe('email library', () => {
     delete process.env.RESEND_API_KEY
 
     const mockContext = {} as any
-    const { sendVerificationEmail } = await import('./email')
+    const { sendVerificationEmail } = await import('./email.js')
     expect(() => sendVerificationEmail(mockContext, 'prod@example.com', 'token-123')).toThrow(
       'RESEND_API_KEY is missing in production'
     )

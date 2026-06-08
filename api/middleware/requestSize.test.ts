@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Hono } from 'hono'
 import { describe, it, expect } from 'vitest'
-import { requestSizeLimit } from './requestSize'
+import { requestSizeLimit } from './requestSize.js'
 
 describe('requestSizeLimit middleware', () => {
   it('allows request when content-length is under limit', async () => {

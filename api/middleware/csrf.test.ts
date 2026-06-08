@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { Hono } from 'hono'
 import { describe, it, expect } from 'vitest'
-import { csrfMiddleware } from './csrf'
+import { csrfMiddleware } from './csrf.js'
 
 describe('csrfMiddleware', () => {
   it('allows safe methods without token', async () => {

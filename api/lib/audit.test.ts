@@ -1,7 +1,7 @@
 // @vitest-environment node
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { audit } from './audit'
+import { audit } from './audit.js'
 import { db } from '../db/index.js'
 
 vi.mock('../db/index.js', () => {
@@ -35,7 +35,7 @@ describe('audit library', () => {
     await promise
 
     expect(db.insert).toHaveBeenCalledOnce()
-    expect(db.values).toHaveBeenCalledWith({
+    expect((db as any).values).toHaveBeenCalledWith({
       userId: '123',
       event: 'login.success',
       ip: '1.2.3.4',
@@ -51,7 +51,7 @@ describe('audit library', () => {
     await new Promise((resolve) => setTimeout(resolve, 5))
 
     expect(db.insert).toHaveBeenCalledOnce()
-    expect(db.values).toHaveBeenCalledWith({
+    expect((db as any).values).toHaveBeenCalledWith({
       userId: '456',
       event: 'logout',
       ip: undefined,

@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { getCachedResponse, setCachedResponse, invalidateUserCache } from './cache'
+import { getCachedResponse, setCachedResponse, invalidateUserCache } from './cache.js'
 
 const mockRedis = {
   get: vi.fn(),

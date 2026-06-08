@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, it, expect, vi } from 'vitest'
 import { generateKeyPairSync } from 'node:crypto'
-import { mintInternalJwt, verifyInternalJwt } from './jwt'
+import { mintInternalJwt, verifyInternalJwt } from './jwt.js'
 
 const { privateKey, publicKey } = generateKeyPairSync('ed25519', {
   privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
