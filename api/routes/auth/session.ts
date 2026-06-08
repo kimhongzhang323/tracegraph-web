@@ -24,7 +24,7 @@ sessionRouter.post('/logout', async (c) => {
     const [sess] = await db.select({ id: sessions.id, userId: sessions.userId }).from(sessions).where(eq(sessions.sessionTokenHash, tokenHash)).limit(1)
     if (sess) {
       await db.update(sessions).set({ revokedAt: now }).where(eq(sessions.id, sess.id))
-      await audit('logout', { userId: sess.userId, ip: ip(c) })
+      audit(c, 'logout', { userId: sess.userId, ip: ip(c) })
     }
   }
   clearAuthCookies(c)
@@ -49,7 +49,7 @@ sessionRouter.post('/logout-all', async (c) => {
 
   await db.update(sessions).set({ revokedAt: new Date() }).where(eq(sessions.userId, session.userId))
   clearAuthCookies(c)
-  await audit('logout.all', { userId: session.userId, ip: ip(c) })
+  audit(c, 'logout.all', { userId: session.userId, ip: ip(c) })
   return c.json({ ok: true })
 })
 

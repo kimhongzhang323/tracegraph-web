@@ -44,7 +44,7 @@ mfaRouter.post('/mfa/enroll/complete', async (c) => {
   const hashed = await Promise.all(rawCodes.map((rc) => hashCode(rc)))
   await db.insert(recoveryCodes).values(hashed.map((codeHash) => ({ userId: session.userId, codeHash })))
 
-  await audit('mfa.enroll', { userId: session.userId, ip: ip(c) })
+  audit(c, 'mfa.enroll', { userId: session.userId, ip: ip(c) })
   return c.json({ recoveryCodes: rawCodes })
 })
 
@@ -73,7 +73,7 @@ mfaRouter.post('/mfa/verify', async (c) => {
     if (verifyTotp(secret, code)) {
       await db.update(sessions).set({ pendingMfa: false }).where(eq(sessions.id, sess.id))
       await rotateSession(c, sess.id)
-      await audit('login.mfa.success', { userId: sess.userId, ip: ip(c) })
+      audit(c, 'login.mfa.success', { userId: sess.userId, ip: ip(c) })
       return c.json({ ok: true, email: user.email })
     }
   }
@@ -87,11 +87,11 @@ mfaRouter.post('/mfa/verify', async (c) => {
       await db.update(recoveryCodes).set({ usedAt: new Date() }).where(eq(recoveryCodes.id, rc.id))
       await db.update(sessions).set({ pendingMfa: false }).where(eq(sessions.id, sess.id))
       await rotateSession(c, sess.id)
-      await audit('recovery.use', { userId: sess.userId, ip: ip(c) })
+      audit(c, 'recovery.use', { userId: sess.userId, ip: ip(c) })
       return c.json({ ok: true, email: user.email })
     }
   }
 
-  await audit('login.mfa.fail', { userId: sess.userId, ip: ip(c) })
+  audit(c, 'login.mfa.fail', { userId: sess.userId, ip: ip(c) })
   return c.json({ error: 'Invalid code' }, 401)
 })

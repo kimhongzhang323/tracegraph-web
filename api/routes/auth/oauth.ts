@@ -98,9 +98,9 @@ oauthRouter.get('/:provider/callback', async (c) => {
   const { userId, action } = result as { userId: string; action: string }
 
   if (action === 'login') {
-    await audit('oauth.login', { userId, ip: clientIp, meta: { provider } })
+    audit(c, 'oauth.login', { userId, ip: clientIp, meta: { provider } })
   } else {
-    await audit('oauth.link', { userId, ip: clientIp, meta: { provider } })
+    audit(c, 'oauth.link', { userId, ip: clientIp, meta: { provider } })
   }
 
   const [user] = await db.select({ email: users.email, mfaEnabled: users.mfaEnabled }).from(users).where(eq(users.id, userId))

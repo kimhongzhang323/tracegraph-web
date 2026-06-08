@@ -33,7 +33,7 @@ magicRouter.post('/magic-link/request', async (c) => {
       ip: clientIp,
     })
     sendMagicLinkEmail(c, email, token)
-    await audit('magic.request', { userId: user.id, ip: clientIp })
+    audit(c, 'magic.request', { userId: user.id, ip: clientIp })
   }
 
   return c.json({ ok: true })
@@ -74,7 +74,7 @@ magicRouter.get('/magic-link/consume', async (c) => {
 
   setSessionCookie(c, sessionToken)
   setCsrfCookie(c, csrfSecret)
-  await audit('magic.consume', { userId: row.userId, ip: ip(c) })
+  audit(c, 'magic.consume', { userId: row.userId, ip: ip(c) })
 
   return c.redirect(user.mfaEnabled ? '/mfa-challenge' : '/trace', 302)
 })
