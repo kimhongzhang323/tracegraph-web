@@ -1,9 +1,57 @@
 import { getRedis } from './redis.js'
 
-const localCache = new Map<string, { data: string; contentType: string; status: number; timestamp: number }>()
-const LOCAL_VERSION_CACHE = new Map<string, string>()
+class BoundedMap<K, V> {
+  private map = new Map<K, V>()
+  constructor(private maxEntries: number) {}
+
+  get(key: K): V | undefined {
+    const val = this.map.get(key)
+    if (val !== undefined) {
+      this.map.delete(key)
+      this.map.set(key, val)
+    }
+    return val
+  }
+
+  set(key: K, value: V): void {
+    if (this.map.has(key)) {
+      this.map.delete(key)
+    } else if (this.map.size >= this.maxEntries) {
+      const oldestKey = this.map.keys().next().value
+      if (oldestKey !== undefined) {
+        this.map.delete(oldestKey)
+      }
+    }
+    this.map.set(key, value)
+  }
+
+  delete(key: K): boolean {
+    return this.map.delete(key)
+  }
+
+  entries() {
+    return this.map.entries()
+  }
+
+  get size() {
+    return this.map.size
+  }
+}
+
+const localCache = new BoundedMap<string, { data: string; contentType: string; status: number; timestamp: number }>(1000)
+const LOCAL_VERSION_CACHE = new BoundedMap<string, string>(1000)
 
 const TTL_MS = 15_000 // 15 seconds cache TTL
+
+// Periodic sweep to clean up expired entries from localCache
+setInterval(() => {
+  const now = Date.now()
+  for (const [key, val] of localCache.entries()) {
+    if (now - val.timestamp > TTL_MS) {
+      localCache.delete(key)
+    }
+  }
+}, 30_000).unref()
 
 async function getUserCacheVersion(userId: string): Promise<string> {
   const redis = getRedis()
@@ -32,11 +80,8 @@ export async function invalidateUserCache(userId: string) {
   const newVer = Date.now().toString()
   const redis = getRedis()
   if (redis) {
-    try {
-      await redis.set(`cver:${userId}`, newVer, { ex: 3600 })
-    } catch (err) {
-      console.error('Redis set cache version failed:', err)
-    }
+    // Fail loud on Redis SET failure (do not catch and swallow the error)
+    await redis.set(`cver:${userId}`, newVer, { ex: 3600 })
   }
   LOCAL_VERSION_CACHE.set(userId, newVer)
 }
@@ -57,7 +102,7 @@ export async function getCachedResponse(userId: string, path: string, query: str
       const cached = await redis.get<CachedResponse>(key)
       if (cached) return cached
     } catch (err) {
-      console.error('Redis get cached response failed:', err)
+      console.error('Redis get cached response failed, falling back to local:', err)
     }
   }
 
