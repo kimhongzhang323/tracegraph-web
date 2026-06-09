@@ -573,7 +573,7 @@ function GraphPanel({ trace, activeIdx, setActiveIdx }: {
           </defs>
 
           <rect x={NODE_LAYOUT_FIXED.validate.x + 15} y="30" width={NODE_LAYOUT_FIXED.validate.w - 30} height="22" rx="4" fill="currentColor" />
-          <text x={NODE_LAYOUT_FIXED.validate.x + NODE_LAYOUT_FIXED.validate.w / 2} y="45" textAnchor="middle" fill="white" className="mono" fontSize="10">▼ entry</text>
+          <text x={NODE_LAYOUT_FIXED.validate.x + NODE_LAYOUT_FIXED.validate.w / 2} y="45" textAnchor="middle" className="mono fill-white dark:fill-ink-950" fontSize="10">▼ entry</text>
 
           {EDGES_FIXED.map((e, i) => {
             const a = NODE_LAYOUT_FIXED[e.from as keyof typeof NODE_LAYOUT_FIXED]
@@ -631,7 +631,7 @@ function GraphPanel({ trace, activeIdx, setActiveIdx }: {
             x2={NODE_LAYOUT_FIXED.ship.x + NODE_LAYOUT_FIXED.ship.w / 2} y2={NODE_LAYOUT_FIXED.ship.y + NODE_LAYOUT_FIXED.ship.h + 24}
             stroke="currentColor" strokeWidth="1.4" />
           <rect x={NODE_LAYOUT_FIXED.ship.x + 15} y={NODE_LAYOUT_FIXED.ship.y + NODE_LAYOUT_FIXED.ship.h + 24} width={NODE_LAYOUT_FIXED.ship.w - 30} height="22" rx="4" fill="currentColor" />
-          <text x={NODE_LAYOUT_FIXED.ship.x + NODE_LAYOUT_FIXED.ship.w / 2} y={NODE_LAYOUT_FIXED.ship.y + NODE_LAYOUT_FIXED.ship.h + 39} textAnchor="middle" fill="white" className="mono" fontSize="10">▲ terminal</text>
+          <text x={NODE_LAYOUT_FIXED.ship.x + NODE_LAYOUT_FIXED.ship.w / 2} y={NODE_LAYOUT_FIXED.ship.y + NODE_LAYOUT_FIXED.ship.h + 39} textAnchor="middle" className="mono fill-white dark:fill-ink-950" fontSize="10">▲ terminal</text>
         </svg>
       </div>
     </Panel>
