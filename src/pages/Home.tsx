@@ -117,7 +117,7 @@ function HeroViz() {
                   y={n.y + (n.sub ? 22 : n.h / 2 + 4)}
                   textAnchor="middle"
                   fill={n.solid ? 'white' : 'currentColor'}
-                  className="mono fill-ink-950 dark:fill-white"
+                  className={`mono ${n.solid ? 'fill-white dark:fill-ink-950' : 'fill-ink-950 dark:fill-white'}`}
                   fontSize="12"
                   fontWeight="500"
                 >
