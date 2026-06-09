@@ -95,7 +95,7 @@ class SSEMultiplexer {
     })
 
     if (!res.ok) {
-      throw new Error(`Failed to connect to upstream SSE: ${res.statusText}`)
+      throw new Error(`Failed to connect to upstream SSE: ${res.status} ${res.statusText}`)
     }
 
     const reader = res.body?.getReader()
