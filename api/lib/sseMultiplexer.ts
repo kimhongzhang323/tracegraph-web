@@ -26,7 +26,12 @@ class SSEMultiplexer {
       this.activeStreams.set(streamKey, streamInfo)
 
       this.startUpstreamConnection(targetUrl, jwt, streamInfo).catch((err) => {
-        console.error('SSE Upstream connection error:', err)
+        const msg = err instanceof Error ? err.message : String(err)
+        if (msg.includes('404') || msg.includes('405')) {
+          console.warn(`Upstream SSE endpoint not supported by backend (${msg}). Live tail updates will be disabled.`)
+        } else {
+          console.error('SSE Upstream connection error:', err)
+        }
         eventEmitter.emit('error', err)
         this.cleanupStream(streamKey)
       })
