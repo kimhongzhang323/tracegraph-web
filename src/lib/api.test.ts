@@ -123,4 +123,61 @@ describe('api client', () => {
     const result = await api.traces.diff('trace-a', 'trace-b')
     expect(result).toEqual({ added: [], removed: [] })
   })
+
+  it('gets the current authenticated user (me)', async () => {
+    const mockUser = { id: 'u-1', email: 'test@example.com', mfaEnabled: false, backendUrl: null }
+    server.use(
+      http.get('http://localhost/api/me', () =>
+        HttpResponse.json(mockUser),
+      ),
+    )
+    const result = await api.auth.me()
+    expect(result).toEqual(mockUser)
+  })
+
+  it('performs logout via POST', async () => {
+    let called = false
+    server.use(
+      http.post('http://localhost/api/auth/logout', () => {
+        called = true
+        return HttpResponse.json(null)
+      }),
+    )
+    await api.auth.logout()
+    expect(called).toBe(true)
+  })
+
+  describe('caching', () => {
+    it('returns undefined if endpoint has not been requested/cached yet', () => {
+      expect(api.getCached('/api/traces/uncached-id')).toBeUndefined()
+      expect(api.traces.getCached('uncached-id')).toBeUndefined()
+      expect(api.traces.listCached(999, 999)).toBeUndefined()
+    })
+
+    it('caches GET response upon successful request', async () => {
+      const traceData = { id: 'trace-cached-1', steps: ['step1'] }
+      server.use(
+        http.get('http://localhost/api/traces/trace-cached-1', () =>
+          HttpResponse.json(traceData),
+        ),
+      )
+
+      await api.traces.get('trace-cached-1')
+      const cached = api.traces.getCached('trace-cached-1')
+      expect(cached).toEqual(traceData)
+    })
+
+    it('caches trace list pagination response upon successful request', async () => {
+      const mockListResponse = { items: ['trace-a', 'trace-b'], total: 2 }
+      server.use(
+        http.get('http://localhost/api/traces', () =>
+          HttpResponse.json(mockListResponse),
+        ),
+      )
+
+      await api.traces.list(20, 0)
+      const cachedList = api.traces.listCached(20, 0)
+      expect(cachedList).toEqual(mockListResponse)
+    })
+  })
 })

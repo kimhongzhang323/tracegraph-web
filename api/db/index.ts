@@ -1,21 +1,32 @@
-import { neon } from '@neondatabase/serverless'
-import { drizzle } from 'drizzle-orm/neon-http'
-import type { NeonHttpDatabase } from 'drizzle-orm/neon-http'
+import { Pool } from '@neondatabase/serverless'
+import { drizzle as drizzleServerless } from 'drizzle-orm/neon-serverless'
+import { drizzle as drizzlePg } from 'drizzle-orm/postgres-js'
+import postgres from 'postgres'
 import * as schema from './schema.js'
 
-let _db: NeonHttpDatabase<typeof schema> | null = null
+type DbInstance = ReturnType<typeof drizzlePg<typeof schema>>
 
-export function getDb(): NeonHttpDatabase<typeof schema> {
+let _db: DbInstance | null = null
+
+export function getDb(): DbInstance {
   if (!_db) {
     const url = process.env.DATABASE_URL
     if (!url) throw new Error('DATABASE_URL is not set — add it to .env.local')
-    _db = drizzle(neon(url), { schema })
+
+    const isLocal = url.includes('localhost') || url.includes('127.0.0.1')
+    if (isLocal) {
+      const client = postgres(url)
+      _db = drizzlePg(client, { schema })
+    } else {
+      const pool = new Pool({ connectionString: url })
+      _db = drizzleServerless(pool, { schema }) as unknown as DbInstance
+    }
   }
   return _db
 }
 
 // Proxy so existing code can keep using `db.select(...)` etc.
-export const db = new Proxy({} as NeonHttpDatabase<typeof schema>, {
+export const db = new Proxy({} as DbInstance, {
   get(_target, prop) {
     return (getDb() as unknown as Record<string | symbol, unknown>)[prop]
   },

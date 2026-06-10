@@ -19,7 +19,8 @@ magicRouter.post('/magic-link/request', async (c) => {
   if (!email) return c.json({ ok: true }) // always 200
 
   const clientIp = ip(c)
-  await checkLimit(magicLinkLimiter, `${clientIp}:${email}`)
+  const { ok } = await checkLimit(magicLinkLimiter, `${clientIp}:${email}`, true)
+  if (!ok) return c.json({ error: 'Too many requests' }, 429)
 
   const [user] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1)
   if (user) {
@@ -31,8 +32,8 @@ magicRouter.post('/magic-link/request', async (c) => {
       expiresAt: new Date(Date.now() + 15 * 60 * 1000),
       ip: clientIp,
     })
-    await sendMagicLinkEmail(email, token).catch(() => {})
-    await audit('magic.request', { userId: user.id, ip: clientIp })
+    sendMagicLinkEmail(c, email, token)
+    audit(c, 'magic.request', { userId: user.id, ip: clientIp })
   }
 
   return c.json({ ok: true })
@@ -73,7 +74,7 @@ magicRouter.get('/magic-link/consume', async (c) => {
 
   setSessionCookie(c, sessionToken)
   setCsrfCookie(c, csrfSecret)
-  await audit('magic.consume', { userId: row.userId, ip: ip(c) })
+  audit(c, 'magic.consume', { userId: row.userId, ip: ip(c) })
 
   return c.redirect(user.mfaEnabled ? '/mfa-challenge' : '/trace', 302)
 })

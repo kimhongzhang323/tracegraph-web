@@ -6,35 +6,8 @@ import { useBackendUrl } from '@/hooks/useBackendUrl'
 import { EDGES, STUDIO_NODES } from '@/data/mock'
 import { api } from '@/lib/api'
 import type { Edge, GraphComplexity, LensMode, StudioNode } from '@/types'
-
-function parseMermaid(src: string): { nodes: StudioNode[]; edges: Edge[] } {
-  const nodeSet = new Set<string>()
-  const edges: Edge[] = []
-  const lines = src.split('\n')
-  for (const line of lines) {
-    // A -->|label| B  or  A --> B
-    const labeled = line.match(/^\s*(\w+)\s*-->\s*\|([^|]+)\|\s*(\w+)/)
-    if (labeled) {
-      nodeSet.add(labeled[1]); nodeSet.add(labeled[3])
-      edges.push({ from: labeled[1], to: labeled[3], label: labeled[2] })
-      continue
-    }
-    const plain = line.match(/^\s*(\w+)\s*-->\s*(\w+)/)
-    if (plain) {
-      nodeSet.add(plain[1]); nodeSet.add(plain[2])
-      edges.push({ from: plain[1], to: plain[2] })
-    }
-  }
-  const nodes: StudioNode[] = Array.from(nodeSet).map((name, i) => ({
-    name,
-    kind: 'sync',
-    fn: `${name}Fn`,
-    retry: '-',
-    entry: i === 0,
-    terminal: i === nodeSet.size - 1,
-  }))
-  return { nodes, edges }
-}
+import { useToast } from '@/contexts/ToastContext'
+import { parseMermaid } from '@/lib/mermaid'
 
 type Selection =
   | { type: 'node'; nodeName: string }
@@ -79,6 +52,13 @@ const NODE_META: Record<
     insight: 'Hands off to fulfillment once the transactional path is complete.',
     context: ['carrier', 'dispatch', 'exit'],
   },
+}
+
+const DEFAULT_META = {
+  tier: 'custom',
+  accent: '#78716c',
+  insight: 'Custom execution node.',
+  context: [] as string[]
 }
 
 export function Studio() {
@@ -177,7 +157,7 @@ export function Studio() {
             <SectionHeader label="Nodes" count={activeNodes.length} />
             {activeNodes.map((node) => {
               const active = selection.type === 'node' && selection.nodeName === node.name
-              const meta = NODE_META[node.name]
+              const meta = NODE_META[node.name] ?? DEFAULT_META
               return (
                 <button
                   key={node.name}
@@ -335,6 +315,7 @@ function BackendBanner({ isLive, onRefresh }: { isLive: boolean; onRefresh: () =
 }
 
 function StudioHeader({ complexity, mermaid, nodeCount, edgeCount }: { complexity: GraphComplexity | null; mermaid: string | null; nodeCount: number; edgeCount: number }) {
+  const { toast } = useToast()
   return (
     <div className="rounded-[20px] border hairline bg-white dark:bg-ink-950 px-4 py-2.5 flex items-center gap-3 flex-wrap">
       <div className="flex items-center gap-2.5 min-w-0 text-[12px] text-ink-700 dark:text-ink-300">
@@ -361,7 +342,12 @@ function StudioHeader({ complexity, mermaid, nodeCount, edgeCount }: { complexit
         >
           <option value="react-agent">react-agent</option>
         </select>
-        <Button size="sm" variant="ghost" icon="file-code" onClick={() => mermaid && alert(mermaid)}>
+        <Button size="sm" variant="ghost" icon="file-code" onClick={() => {
+          if (mermaid) {
+            navigator.clipboard.writeText(mermaid)
+            toast('Mermaid markup copied to clipboard!', 'success')
+          }
+        }}>
           Mermaid
         </Button>
         <Button size="sm" variant="ghost" icon="file-code">
@@ -473,7 +459,7 @@ function MiniMap({ focusNode, nodes, edges }: { focusNode: string | null; nodes:
         )
       })}
       {nodes.map((node, index) => {
-        const meta = NODE_META[node.name]
+        const meta = NODE_META[node.name] ?? DEFAULT_META
         return (
           <circle
             key={node.name}
@@ -502,7 +488,7 @@ function StudioNodeInspector({ nodeName, nodes, edges }: { nodeName: string; nod
 
   const incoming = edges.filter((edge) => edge.to === node.name)
   const outgoing = edges.filter((edge) => edge.from === node.name)
-  const meta = NODE_META[node.name]
+  const meta = NODE_META[node.name] ?? DEFAULT_META
 
   const Field = ({ k, v }: { k: string; v: string }) => (
     <div className="grid grid-cols-[100px_1fr] gap-3 py-2 border-t hairline first:border-t-0 text-[12.5px]">

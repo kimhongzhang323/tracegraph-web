@@ -34,7 +34,7 @@ passwordRouter.post('/register', async (c) => {
   const { email, password } = parsed.data
   const clientIp = ip(c)
 
-  const { ok } = await checkLimit(registerLimiter, clientIp)
+  const { ok } = await checkLimit(registerLimiter, clientIp, true)
   if (!ok) return c.json({ error: 'Too many requests' }, 429)
 
   const existing = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1)
@@ -56,8 +56,8 @@ passwordRouter.post('/register', async (c) => {
     ip: clientIp,
   })
 
-  await sendVerificationEmail(email, token).catch(() => {})
-  await audit('register.success', { userId: user.id, ip: clientIp })
+  sendVerificationEmail(c, email, token)
+  audit(c, 'register.success', { userId: user.id, ip: clientIp })
   return c.json({ ok: true })
 })
 
@@ -79,7 +79,7 @@ passwordRouter.post('/verify-email', async (c) => {
 
   await db.update(emailTokens).set({ usedAt: now }).where(eq(emailTokens.id, row.id))
   await db.update(users).set({ emailVerifiedAt: now }).where(eq(users.id, row.userId))
-  await audit('email.verify', { userId: row.userId })
+  audit(c, 'email.verify', { userId: row.userId })
 
   const [user] = await db.select({ email: users.email, mfaEnabled: users.mfaEnabled }).from(users).where(eq(users.id, row.userId))
   return createSession(c, row.userId, user.email, user.mfaEnabled, false)
@@ -92,9 +92,9 @@ passwordRouter.post('/login', async (c) => {
   const { email, password } = parsed.data
   const clientIp = ip(c)
 
-  if (isLocked(email)) return c.json({ error: 'Too many requests' }, 429)
+  if (await isLocked(email)) return c.json({ error: 'Too many requests' }, 429)
 
-  const { ok } = await checkLimit(loginLimiter, `${clientIp}:${email}`)
+  const { ok } = await checkLimit(loginLimiter, `${clientIp}:${email}`, true)
   if (!ok) return c.json({ error: 'Too many requests' }, 429)
 
   const [user] = await db
@@ -107,16 +107,16 @@ passwordRouter.post('/login', async (c) => {
   const valid = user?.passwordHash ? await verifyPassword(user.passwordHash, password) : (await verifyPassword(dummyHash, password), false)
 
   if (!valid || !user) {
-    recordFailure(email)
-    await audit('login.fail', { ip: clientIp, meta: { email } })
+    await recordFailure(email)
+    audit(c, 'login.fail', { ip: clientIp, meta: { email } })
     return c.json({ error: 'Invalid credentials' }, 401)
   }
 
   if (user.disabledAt) return c.json({ error: 'Account disabled' }, 403)
   if (!user.emailVerifiedAt) return c.json({ error: 'Email not verified' }, 403)
 
-  recordSuccess(email)
-  await audit('login.success', { userId: user.id, ip: clientIp })
+  await recordSuccess(email)
+  audit(c, 'login.success', { userId: user.id, ip: clientIp })
   return createSession(c, user.id, email, user.mfaEnabled, user.mfaEnabled)
 })
 
@@ -125,14 +125,15 @@ passwordRouter.post('/password/forgot', async (c) => {
   const email = String(body?.email ?? '').toLowerCase()
   const clientIp = ip(c)
 
-  await checkLimit(passwordResetLimiter, `${clientIp}:${email}`)
+  const { ok: limitOk } = await checkLimit(passwordResetLimiter, `${clientIp}:${email}`, true)
+  if (!limitOk) return c.json({ error: 'Too many requests' }, 429)
 
   const [user] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1)
   if (user) {
     const token = generateOpaqueToken()
     await db.insert(emailTokens).values({ userId: user.id, purpose: 'reset', tokenHash: hashToken(token), expiresAt: new Date(Date.now() + 3600 * 1000), ip: clientIp })
-    await sendPasswordResetEmail(email, token).catch(() => {})
-    await audit('password.reset.request', { userId: user.id, ip: clientIp })
+    sendPasswordResetEmail(c, email, token)
+    audit(c, 'password.reset.request', { userId: user.id, ip: clientIp })
   }
 
   return c.json({ ok: true })
@@ -158,8 +159,21 @@ passwordRouter.post('/password/reset', async (c) => {
   await db.update(users).set({ passwordHash }).where(eq(users.id, row.userId))
   await db.update(emailTokens).set({ usedAt: now }).where(eq(emailTokens.id, row.id))
   // Revoke all existing sessions after password reset
+  const activeSessions = await db
+    .select({ tokenHash: sessions.sessionTokenHash })
+    .from(sessions)
+    .where(and(eq(sessions.userId, row.userId), isNull(sessions.revokedAt)))
+
+  const { getRedis } = await import('../../lib/redis.js')
+  const redis = getRedis()
+  if (redis && activeSessions.length) {
+    for (const s of activeSessions) {
+      await redis.del(`sess:${s.tokenHash}`).catch(() => {})
+    }
+  }
+
   await db.update(sessions).set({ revokedAt: now }).where(eq(sessions.userId, row.userId))
-  await audit('password.reset.complete', { userId: row.userId })
+  audit(c, 'password.reset.complete', { userId: row.userId })
   return c.json({ ok: true })
 })
 

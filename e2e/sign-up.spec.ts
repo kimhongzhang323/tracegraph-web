@@ -10,7 +10,7 @@ test.describe('Sign Up', () => {
 
   test('empty form shows validation errors', async ({ page }) => {
     await page.goto('/sign-up')
-    await page.getByRole('button', { name: /sign up|create account|register/i }).click()
+    await page.locator('form').getByRole('button', { name: /sign up|create account|register/i }).click()
     const hasError =
       (await page.locator('[data-testid="error"], [role="alert"]').count()) > 0 ||
       (await page.locator('input:invalid').count()) > 0
@@ -25,7 +25,7 @@ test.describe('Sign Up', () => {
     if (await passwordField.isVisible()) {
       await passwordField.fill('TestPassword123!')
     }
-    await page.getByRole('button', { name: /sign up|create account|register/i }).click()
+    await page.locator('form').getByRole('button', { name: /sign up|create account|register/i }).click()
     await expect(
       page.getByText(/check your email|verify|sent|confirmation/i).first(),
     ).toBeVisible({ timeout: 8_000 })

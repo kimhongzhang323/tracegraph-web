@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Badge } from '@/components/Badge'
+import { useToast } from '@/contexts/ToastContext'
 import { SbBtn, SbIcon, SbPanel } from './sandbox/atoms'
 import { ApiConsole } from './sandbox/ApiConsole'
 import { SandboxHeader, MetricTile, TransportBar } from './sandbox/Chrome'
@@ -93,6 +94,7 @@ function CoachCard({ runStatus, hasFork, failingCount }: { runStatus: RunStatus;
 }
 
 export function Sandbox() {
+  const { toast } = useToast()
   const [presetKey, setPresetKey] = useState<string>('order-pipeline')
   const [view, setView] = useState<ViewKey>('execution')
   const [leftTab, setLeftTab] = useState<LeftTab>('presets')
@@ -293,7 +295,7 @@ export function Sandbox() {
       <SandboxHeader
         presetKey={presetKey}
         setPresetKey={changePreset}
-        onShare={() => window.alert('Trace exported: trace-' + Math.random().toString(16).slice(2, 8) + '.json')}
+        onShare={() => toast('Trace exported: trace-' + Math.random().toString(16).slice(2, 8) + '.json', 'success')}
         onReset={resetRun}
       />
 

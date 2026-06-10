@@ -103,12 +103,24 @@ function CircleNode({ data }: NodeProps<Node<CircleNodeData>>) {
 
 const NODE_TYPES: NodeTypes = { circleNode: CircleNode }
 
+const LAYOUT_CACHE = new Map<string, Map<string, { x: number; y: number }>>()
+
 function computeForceLayout(
   nodeIds: string[],
   edgePairs: { source: string; target: string }[],
   width: number,
   height: number,
 ): Map<string, { x: number; y: number }> {
+  const sortedNodes = [...nodeIds].sort().join(',')
+  const sortedEdges = [...edgePairs]
+    .map((e) => `${e.source}->${e.target}`)
+    .sort()
+    .join(',')
+  const cacheKey = `${sortedNodes}|${sortedEdges}|${width}x${height}`
+
+  const cached = LAYOUT_CACHE.get(cacheKey)
+  if (cached) return cached
+
   const simNodes = nodeIds.map((id) => ({ id, x: width / 2, y: height / 2 }))
   const simLinks = edgePairs.map(({ source, target }) => ({ source, target }))
 
@@ -120,10 +132,13 @@ function computeForceLayout(
     .force('collide', d3Force.forceCollide(50))
     .stop()
 
-  simulation.tick(300)
+  const ticks = Math.max(60, Math.min(200, Math.round(1000 / Math.sqrt(nodeIds.length || 1))))
+  simulation.tick(ticks)
 
   const positions = new Map<string, { x: number; y: number }>()
   simNodes.forEach((n) => positions.set(n.id, { x: n.x, y: n.y }))
+
+  LAYOUT_CACHE.set(cacheKey, positions)
   return positions
 }
 

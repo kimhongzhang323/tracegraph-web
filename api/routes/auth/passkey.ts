@@ -55,7 +55,7 @@ passkeyRouter.post('/register/finish', async (c) => {
   })
 
   await db.delete(passkeyChallenge).where(eq(passkeyChallenge.id, challenge.id))
-  await audit('passkey.register', { userId: session.userId, ip: ip(c) })
+  audit(c, 'passkey.register', { userId: session.userId, ip: ip(c) })
   return c.json({ ok: true })
 })
 
@@ -122,7 +122,7 @@ passkeyRouter.post('/login/finish', async (c) => {
 
   setSessionCookie(c, sessionToken)
   setCsrfCookie(c, csrfSecret)
-  await audit('passkey.login', { userId: pk.userId, ip: ip(c) })
+  audit(c, 'passkey.login', { userId: pk.userId, ip: ip(c) })
 
   return c.json({ ok: true, email: user.email, needs_mfa: user.mfaEnabled })
 })

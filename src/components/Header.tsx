@@ -1,6 +1,7 @@
 import { useAuth } from '@/contexts/authContext'
 import { Button } from './Button'
 import { Icon } from './Icon'
+import { Link } from 'react-router-dom'
 
 const NAV = [
   { id: 'home',      href: '/',          label: 'Overview' },
@@ -23,20 +24,20 @@ export function Header({ route, theme, setTheme }: HeaderProps) {
   return (
     <header className="sticky top-0 z-50 backdrop-blur-md bg-white/75 dark:bg-ink-950/75 border-b hairline">
       <div className="max-w-[1500px] mx-auto px-6 lg:px-8 h-14 flex items-center gap-6">
-        <a href="/" className="flex items-center gap-2.5">
+        <Link to="/" className="flex items-center gap-2.5">
           <Logo />
           <span className="font-medium tracking-tight text-ink-950 dark:text-white text-[15px]">TraceGraph</span>
           <span className="mono text-[10.5px] text-ink-700 dark:text-ink-400 px-1.5 h-[18px] inline-flex items-center rounded bg-ink-100 dark:bg-ink-900">v0.3.0</span>
-        </a>
+        </Link>
 
         <nav className="hidden md:flex items-center gap-1 ml-2">
           {NAV.map((n) => (
-            <a key={n.id} href={n.href}
+            <Link key={n.id} to={n.href}
                className={`px-3 h-8 inline-flex items-center rounded-md text-[13px] transition-colors ${
                  route === n.id
                    ? 'text-ink-950 dark:text-white bg-ink-100 dark:bg-ink-900'
                    : 'text-ink-600 dark:text-ink-400 hover:text-ink-950 dark:hover:text-white'
-               }`}>{n.label}</a>
+               }`}>{n.label}</Link>
           ))}
         </nav>
 
@@ -44,9 +45,9 @@ export function Header({ route, theme, setTheme }: HeaderProps) {
 
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            className="w-8 h-8 rounded-md inline-flex items-center justify-center text-ink-600 dark:text-ink-400 hover:bg-ink-100 dark:hover:bg-ink-900"
-            aria-label="Toggle theme">
+             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+             className="w-8 h-8 rounded-md inline-flex items-center justify-center text-ink-600 dark:text-ink-400 hover:bg-ink-100 dark:hover:bg-ink-900"
+             aria-label="Toggle theme">
             <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={15} />
           </button>
           <a href="https://github.com/kimhongzhang323/TraceGraph"
@@ -56,13 +57,17 @@ export function Header({ route, theme, setTheme }: HeaderProps) {
           </a>
           {user ? (
             <div className="flex items-center gap-2">
-              <a href="/account" className="text-[13px] text-ink-600 dark:text-ink-400 hover:text-ink-950 dark:hover:text-white px-2">{user.email}</a>
+              <Link to="/account" className="text-[13px] text-ink-600 dark:text-ink-400 hover:text-ink-950 dark:hover:text-white px-2">{user.email}</Link>
               <Button size="sm" variant="ghost" onClick={signOut} className="hidden sm:inline-flex">Sign out</Button>
             </div>
           ) : (
             <>
-              <Button as="a" href="/sign-in" size="sm" variant="ghost" className="hidden sm:inline-flex">Sign in</Button>
-              <Button as="a" href="/sign-up" size="sm" variant="primary" className="hidden sm:inline-flex">Sign up</Button>
+              <Link to="/sign-in" className="hidden sm:inline-flex">
+                <Button size="sm" variant="ghost">Sign in</Button>
+              </Link>
+              <Link to="/sign-up" className="hidden sm:inline-flex">
+                <Button size="sm" variant="primary">Sign up</Button>
+              </Link>
             </>
           )}
         </div>

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, type ReactNode } from 'react'
 import { AuthContext } from './authContext'
+import { api } from '@/lib/api'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<import('./authContext').AuthUser | null>(null)
@@ -7,12 +8,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refresh = useCallback(async () => {
     try {
-      const res = await fetch('/api/me', { credentials: 'include' })
-      if (res.ok) {
-        setUser(await res.json())
-      } else {
-        setUser(null)
-      }
+      const data = await api.auth.me()
+      setUser(data)
     } catch {
       setUser(null)
     } finally {
@@ -23,10 +20,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => { refresh() }, [refresh])
 
   const signOut = useCallback(async () => {
-    const csrf = document.cookie.match(/__Host-csrf=([^;]+)/)?.[1] ?? ''
-    await fetch('/api/auth/logout', { method: 'POST', credentials: 'include', headers: { 'x-csrf-token': csrf } })
-    setUser(null)
-    window.location.href = '/'
+    try {
+      await api.auth.logout()
+    } catch (err) {
+      console.error('Logout failed:', err)
+    } finally {
+      setUser(null)
+      window.location.href = '/'
+    }
   }, [])
 
   return <AuthContext.Provider value={{ user, loading, signOut, refresh }}>{children}</AuthContext.Provider>

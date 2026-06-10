@@ -54,30 +54,53 @@ oauthRouter.get('/:provider/callback', async (c) => {
 
   const clientIp = c.req.header('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
 
-  // Find or create user
-  let userId: string
-  const [existingOauth] = await db.select({ userId: oauthAccounts.userId }).from(oauthAccounts)
-    .where(and(eq(oauthAccounts.provider, provider), eq(oauthAccounts.providerAccountId, oauthUser.id))).limit(1)
+  // Find or create user atomically inside a transaction
+  const result = await db.transaction(async (tx) => {
+    const [existingOauth] = await tx.select({ userId: oauthAccounts.userId }).from(oauthAccounts)
+      .where(and(eq(oauthAccounts.provider, provider), eq(oauthAccounts.providerAccountId, oauthUser.id))).limit(1)
 
-  if (existingOauth) {
-    userId = existingOauth.userId
-    await audit('oauth.login', { userId, ip: clientIp, meta: { provider } })
-  } else {
-    // Find by email for account linking
-    const [existingUser] = await db.select({ id: users.id }).from(users).where(eq(users.email, oauthUser.email)).limit(1)
-
-    if (existingUser) {
-      userId = existingUser.id
-    } else {
-      const [newUser] = await db.insert(users).values({
-        email: oauthUser.email,
-        emailVerifiedAt: oauthUser.emailVerified ? new Date() : null,
-      }).returning({ id: users.id })
-      userId = newUser.id
+    if (existingOauth) {
+      return { userId: existingOauth.userId, action: 'login' }
     }
 
-    await db.insert(oauthAccounts).values({ userId, provider, providerAccountId: oauthUser.id })
-    await audit('oauth.link', { userId, ip: clientIp, meta: { provider } })
+    const [existingUser] = await tx.select({ id: users.id }).from(users).where(eq(users.email, oauthUser.email)).limit(1)
+    let userId: string
+    let action = 'link'
+
+    if (existingUser) {
+      if (!oauthUser.emailVerified) {
+        return { error: 'oauth_email_unverified' }
+      }
+      userId = existingUser.id
+    } else {
+      const [newUser] = await tx.insert(users).values({
+        email: oauthUser.email,
+        emailVerifiedAt: oauthUser.emailVerified ? new Date() : null,
+      }).onConflictDoNothing({ target: users.email }).returning({ id: users.id })
+
+      if (newUser) {
+        userId = newUser.id
+        action = 'create'
+      } else {
+        const [insertedUser] = await tx.select({ id: users.id }).from(users).where(eq(users.email, oauthUser.email)).limit(1)
+        userId = insertedUser.id
+      }
+    }
+
+    await tx.insert(oauthAccounts).values({ userId, provider, providerAccountId: oauthUser.id }).onConflictDoNothing()
+    return { userId, action }
+  })
+
+  if ('error' in result && result.error) {
+    return c.redirect(`/sign-in?error=${result.error}`, 302)
+  }
+
+  const { userId, action } = result as { userId: string; action: string }
+
+  if (action === 'login') {
+    audit(c, 'oauth.login', { userId, ip: clientIp, meta: { provider } })
+  } else {
+    audit(c, 'oauth.link', { userId, ip: clientIp, meta: { provider } })
   }
 
   const [user] = await db.select({ email: users.email, mfaEnabled: users.mfaEnabled }).from(users).where(eq(users.id, userId))

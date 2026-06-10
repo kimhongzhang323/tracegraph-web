@@ -22,13 +22,36 @@ async function getPublicKey(): Promise<CryptoKey> {
   return publicKey
 }
 
+const tokenCache = new Map<string, { token: string; expiresAt: number }>()
+
 export async function mintInternalJwt(userId: string, email: string): Promise<string> {
+  const now = Math.floor(Date.now() / 1000)
+  const cacheKey = `${userId}:${email}`
+  const cached = tokenCache.get(cacheKey)
+  if (cached) {
+    if (cached.expiresAt > now + 10) {
+      return cached.token
+    } else {
+      tokenCache.delete(cacheKey)
+    }
+  }
+
   const key = await getPrivateKey()
-  return new SignJWT({ sub: userId, email })
+  const token = await new SignJWT({ sub: userId, email })
     .setProtectedHeader({ alg: ALG })
     .setIssuedAt()
     .setExpirationTime(`${TTL_SECONDS}s`)
     .sign(key)
+
+  if (tokenCache.size >= 1000) {
+    const oldestKey = tokenCache.keys().next().value
+    if (oldestKey !== undefined) {
+      tokenCache.delete(oldestKey)
+    }
+  }
+
+  tokenCache.set(cacheKey, { token, expiresAt: now + TTL_SECONDS })
+  return token
 }
 
 export async function verifyInternalJwt(token: string): Promise<{ sub: string; email: string }> {

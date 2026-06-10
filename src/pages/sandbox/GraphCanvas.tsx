@@ -60,7 +60,8 @@ export function GraphCanvas({ preset, history, currentStep, runStatus, failingNo
 
   return (
     <div className="relative h-full grid-bg overflow-hidden">
-      <svg viewBox="0 0 720 600" className="w-full h-full">
+      <svg viewBox="0 0 720 600" className="w-full h-full" aria-label="Interactive execution graph">
+        <title>Interactive execution graph</title>
         <defs>
           <marker id="sb-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
             <path d="M0,0 L10,5 L0,10 z" className="fill-ink-400 dark:fill-ink-500" />
@@ -137,11 +138,22 @@ export function GraphCanvas({ preset, history, currentStep, runStatus, failingNo
               : 'fill-white dark:fill-ink-950'
           const textCls = isTerminal && st.phase === 'done' ? 'fill-white dark:fill-ink-950' : 'fill-ink-950 dark:fill-white'
 
+          const isClickable = !isTerminal
           return (
             <g
               key={n.id}
-              className={`cursor-pointer ${st.phase === 'running' ? 'node-running' : ''}`}
-              onClick={() => !isTerminal && onPickNode(n.id)}
+              className={`focus-visible:outline-none [&_rect]:focus-visible:stroke-accent-500 [&_rect]:focus-visible:stroke-[2.5px] ${isClickable ? 'cursor-pointer' : 'cursor-default'} ${st.phase === 'running' ? 'node-running' : ''}`}
+              role={isClickable ? 'button' : undefined}
+              tabIndex={isClickable ? 0 : undefined}
+              aria-label={`Node: ${n.label}${n.sub ? `, ${n.sub}` : ''}`}
+              onClick={() => isClickable && onPickNode(n.id)}
+              onKeyDown={(e) => {
+                if (isClickable && (e.key === 'Enter' || e.key === ' ')) {
+                  e.preventDefault()
+                  onPickNode(n.id)
+                }
+              }}
+              style={{ outline: 'none' }}
             >
               {isSelected && !isTerminal && (
                 <rect

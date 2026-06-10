@@ -2,15 +2,29 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
 import { MOCK_TRACE_LIST } from '@/data/mock'
 
-const { MockEventSource, mockList, mockStream } = vi.hoisted(() => {
+const { MockEventSource, mockList, mockStream, triggerSSEEvent } = vi.hoisted(() => {
+  const listeners = new Map<string, ((e: MessageEvent) => void)[]>()
   class MockEventSource {
-    addEventListener() {}
+    addEventListener(type: string, listener: (e: MessageEvent) => void) {
+      if (!listeners.has(type)) listeners.set(type, [])
+      listeners.get(type)!.push(listener)
+    }
+    removeEventListener(type: string, listener: (e: MessageEvent) => void) {
+      if (listeners.has(type)) {
+        const list = listeners.get(type)!
+        listeners.set(type, list.filter(l => l !== listener))
+      }
+    }
     close() {}
     onerror: null = null
   }
   const mockList = vi.fn().mockResolvedValue({ items: ['trace-1', 'trace-2'], total: 2 })
   const mockStream = vi.fn().mockImplementation(() => new MockEventSource())
-  return { MockEventSource, mockList, mockStream }
+  const triggerSSEEvent = (type: string, data: unknown) => {
+    const list = listeners.get(type) ?? []
+    list.forEach(l => l(new MessageEvent(type, { data: JSON.stringify(data) })))
+  }
+  return { MockEventSource, mockList, mockStream, triggerSSEEvent }
 })
 
 vi.mock('@/lib/api', () => ({
@@ -32,6 +46,7 @@ afterEach(() => {
   vi.unstubAllGlobals()
   mockList.mockReset()
   mockList.mockResolvedValue({ items: ['trace-1', 'trace-2'], total: 2 })
+  vi.useRealTimers()
 })
 
 describe('useLiveTraces', () => {
@@ -60,5 +75,34 @@ describe('useLiveTraces', () => {
     const { unmount } = renderHook(() => useLiveTraces())
     unmount()
     // Cancelled flag prevents setState — no act() warnings expected
+  })
+
+  it('debounces list refetches on Complete SSE events', async () => {
+    vi.useFakeTimers()
+    renderHook(() => useLiveTraces())
+    
+    // First fetch happens on mount
+    expect(mockList).toHaveBeenCalledTimes(1)
+    
+    // Reset call counts for clean assertions
+    mockList.mockClear()
+    
+    // Emit multiple Complete events in rapid succession
+    triggerSSEEvent('Complete', { id: 'trace-3' })
+    triggerSSEEvent('Complete', { id: 'trace-4' })
+    triggerSSEEvent('Complete', { id: 'trace-5' })
+    
+    // Ensure no fetch has been made yet (debounced)
+    expect(mockList).not.toHaveBeenCalled()
+    
+    // Advance time by 499ms (less than 500ms debounce window)
+    await vi.advanceTimersByTimeAsync(499)
+    expect(mockList).not.toHaveBeenCalled()
+    
+    // Advance time past the 500ms debounce window
+    await vi.advanceTimersByTimeAsync(2)
+    
+    // Ensure only a single API call was made
+    expect(mockList).toHaveBeenCalledTimes(1)
   })
 })

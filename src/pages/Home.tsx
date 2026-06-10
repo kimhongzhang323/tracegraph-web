@@ -2,6 +2,7 @@ import { SectionLabel, StatusDot, Button, Code, CodeBlock, Badge, Icon } from '@
 import { Seo } from '@/components/Seo'
 import { MODULES } from '@/data/mock'
 import { highlightJava } from '@/lib/highlight'
+import { Link } from 'react-router-dom'
 
 export function Home() {
   return (
@@ -38,8 +39,12 @@ function Hero() {
           TraceGraph is a typed execution-graph runtime for the JVM. Replay any run, fork from any step, diff two executions — all from plain Java records.
         </p>
         <div className="mt-10 flex items-center justify-center gap-3 flex-wrap">
-          <Button as="a" href="/docs" size="lg" variant="primary" iconRight="arrow-right">Get started</Button>
-          <Button as="a" href="/trace" size="lg" variant="ghost">Open trace explorer</Button>
+          <Link to="/docs">
+            <Button size="lg" variant="primary" iconRight="arrow-right">Get started</Button>
+          </Link>
+          <Link to="/trace">
+            <Button size="lg" variant="ghost">Open trace explorer</Button>
+          </Link>
         </div>
         <div className="mt-12 mono text-[12px] text-ink-500 flex items-center justify-center gap-2">
           <span className="opacity-60">$</span>
@@ -112,7 +117,7 @@ function HeroViz() {
                   y={n.y + (n.sub ? 22 : n.h / 2 + 4)}
                   textAnchor="middle"
                   fill={n.solid ? 'white' : 'currentColor'}
-                  className="mono fill-ink-950 dark:fill-white"
+                  className={`mono ${n.solid ? 'fill-white dark:fill-ink-950' : 'fill-ink-950 dark:fill-white'}`}
                   fontSize="12"
                   fontWeight="500"
                 >
@@ -155,9 +160,9 @@ function HeroViz() {
               ))}
             </div>
           </div>
-          <a href="/trace" className="arrow-link mono text-[12px] text-accent-600 dark:text-accent-100 inline-flex items-center gap-1.5 mt-2">
+          <Link to="/trace" className="arrow-link mono text-[12px] text-accent-600 dark:text-accent-100 inline-flex items-center gap-1.5 mt-2">
             Open in trace explorer <span className="arrow">→</span>
-          </a>
+          </Link>
         </div>
       </div>
     </div>
@@ -352,10 +357,12 @@ if (!d.identical()) {
               ))}
             </ul>
             <div className="mt-8">
-              <Button as="a" href="/trace" variant="ghost" size="md" iconRight="arrow-right"
-                className="!border-white/20 !text-white hover:!bg-white/10">
-                Open the trace explorer
-              </Button>
+              <Link to="/trace">
+                <Button variant="ghost" size="md" iconRight="arrow-right"
+                  className="!border-white/20 !text-white hover:!bg-white/10">
+                  Open the trace explorer
+                </Button>
+              </Link>
             </div>
           </div>
         </div>
@@ -411,8 +418,12 @@ function CtaSection() {
           No SaaS. No agent. No daemon. <Code>mvn install</Code>, then write Java.
         </p>
         <div className="mt-10 flex items-center justify-center gap-3 flex-wrap">
-          <Button as="a" href="/docs" size="lg" variant="primary" iconRight="arrow-right">Quickstart guide</Button>
-          <Button as="a" href="/studio" size="lg" variant="ghost">Try the graph studio</Button>
+          <Link to="/docs">
+            <Button size="lg" variant="primary" iconRight="arrow-right">Quickstart guide</Button>
+          </Link>
+          <Link to="/studio">
+            <Button size="lg" variant="ghost">Try the graph studio</Button>
+          </Link>
         </div>
       </div>
     </section>

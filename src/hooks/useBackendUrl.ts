@@ -21,10 +21,14 @@ export function useBackendUrl(): UseBackendUrl {
     setTesting(true)
     setError(null)
     try {
+      const csrf = document.cookie.match(/__Host-csrf=([^;]+)/)?.[1] ?? ''
       const res = await fetch('/api/me/backend/test', {
         method: 'POST',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-csrf-token': csrf,
+        },
         body: JSON.stringify({ url }),
       })
       const data = await res.json() as { ok: boolean; error?: string }
@@ -43,10 +47,14 @@ export function useBackendUrl(): UseBackendUrl {
     setSaving(true)
     setError(null)
     try {
+      const csrf = document.cookie.match(/__Host-csrf=([^;]+)/)?.[1] ?? ''
       const res = await fetch('/api/me', {
         method: 'PATCH',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-csrf-token': csrf,
+        },
         body: JSON.stringify({ backendUrl: url }),
       })
       if (!res.ok) {

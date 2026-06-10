@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
-import { Panel, Badge, Button } from '@/components'
+import { Panel, Badge, Button, ConfirmModal } from '@/components'
 import { BackendConnect } from '@/components'
 import { Seo } from '@/components/Seo'
 import { useBackendUrl } from '@/hooks/useBackendUrl'
 import { MOCK_TRACE, MOCK_TRACE_LIST } from '@/data/mock'
 import { api } from '@/lib/api'
+import { sseManager } from '@/lib/sse'
 import type { ExecutionTrace, TraceDiff, TraceStep, TraceSummary } from '@/types'
+import { useToast } from '@/contexts/ToastContext'
 
 type ViewMode = 'inspect' | 'diff'
 
@@ -68,6 +70,8 @@ function normaliseTrace(raw: unknown): ExecutionTrace {
 
 export function TraceExplorer() {
   const { backendUrl, clear } = useBackendUrl()
+  const { toast } = useToast()
+  const [deleteId, setDeleteId] = useState<string | null>(null)
   const [activeIdx, setActiveIdx] = useState(0)
   const [trace, setTrace] = useState<ExecutionTrace>(MOCK_TRACE)
   const [traceList, setTraceList] = useState<TraceSummary[]>(MOCK_TRACE_LIST)
@@ -78,10 +82,22 @@ export function TraceExplorer() {
   const [diffResult, setDiffResult] = useState<TraceDiff | null>(null)
   const [diffLoading, setDiffLoading] = useState(false)
   const [liveEvents, setLiveEvents] = useState<{ t: number; type: string; node: string }[]>([])
+  const [page, setPage] = useState(0)
+  const LIMIT = 20
 
   useEffect(() => {
+    const cachedList = api.traces.listCached(LIMIT, page * LIMIT)
+    if (cachedList) {
+      const ids: string[] = Array.isArray(cachedList)
+        ? (cachedList as string[])
+        : ((cachedList as { items: string[] }).items ?? [])
+      if (ids.length > 0) {
+        setTraceList(ids.map((id) => ({ id, graph: 'graph', status: 'COMPLETED' })))
+      }
+    }
+
     api.traces
-      .list(20)
+      .list(LIMIT, page * LIMIT)
       .then((data) => {
         const ids: string[] = Array.isArray(data)
           ? (data as string[])
@@ -89,53 +105,68 @@ export function TraceExplorer() {
         if (ids.length > 0) {
           setIsLive(true)
           setTraceList(ids.map((id) => ({ id, graph: 'graph', status: 'COMPLETED' })))
-          loadTrace(ids[0])
+          if (page === 0) {
+            loadTrace(ids[0])
+          }
+        } else {
+          setTraceList([])
         }
       })
       .catch(() => {
         setIsLive(false)
       })
-  }, [])
+  }, [page])
 
   useEffect(() => {
-    const es = api.traces.stream()
-    if (!es) return
     const t0 = Date.now()
-    es.onmessage = (e) => {
+    const unsubscribe = sseManager.subscribe((e) => {
       try {
         const payload = JSON.parse(e.data) as Record<string, unknown>
         const type = (payload.type as string) ?? e.type ?? 'event'
         const node = (payload.nodeName as string) ?? ''
         setLiveEvents((prev) => [...prev.slice(-49), { t: Date.now() - t0, type, node }])
       } catch { /* non-json event */ }
-    }
-    return () => es.close()
+    })
+    return unsubscribe
   }, [])
 
   function loadTrace(id: string) {
+    const cached = api.traces.getCached(id)
+    if (cached && typeof cached === 'object') {
+      setTrace(normaliseTrace(cached))
+    }
     api.traces
       .get(id)
       .then((raw) => {
         if (raw && typeof raw === 'object') {
-          setTrace(normaliseTrace(raw))
-          setActiveIdx(0)
+          const norm = normaliseTrace(raw)
+          setTrace((prev) => {
+            if (prev.executionId !== norm.executionId) {
+              setActiveIdx(0)
+            }
+            return norm
+          })
         }
       })
       .catch(() => {})
   }
 
   function handleDelete(id: string) {
-    if (!confirm(`Delete trace ${id.slice(0, 12)}…?`)) return
+    setDeleteId(id)
+  }
+
+  function handleDeleteConfirm(id: string) {
     api.traces
       .delete(id)
       .then(() => {
-        api.traces.list(20).then((data) => {
+        toast('Trace deleted successfully', 'success')
+        api.traces.list(LIMIT, page * LIMIT).then((data) => {
           const ids: string[] = Array.isArray(data) ? (data as string[]) : []
           setTraceList(ids.map((i) => ({ id: i, graph: 'graph', status: 'COMPLETED' })))
           if (ids.length > 0) loadTrace(ids[0])
         }).catch(() => {})
       })
-      .catch(() => alert(`DELETE /tracegraph/traces/${id} failed`))
+      .catch(() => toast(`Delete trace ${id.slice(0, 12)} failed`, 'error'))
   }
 
   function handleDiff() {
@@ -144,7 +175,7 @@ export function TraceExplorer() {
     api.traces
       .diff(diffIdA, diffIdB)
       .then((r) => { setDiffResult(r as TraceDiff); setDiffLoading(false) })
-      .catch(() => { alert('Diff failed'); setDiffLoading(false) })
+      .catch(() => { toast('Diff failed', 'error'); setDiffLoading(false) })
   }
 
   if (!backendUrl) return <BackendConnect />
@@ -206,6 +237,9 @@ export function TraceExplorer() {
               activeIdx={activeIdx}
               onLoad={loadTrace}
               onDelete={handleDelete}
+              page={page}
+              setPage={setPage}
+              limit={LIMIT}
             />
           </div>
           <div className="mt-4 grid grid-cols-1 lg:grid-cols-[300px_1fr_360px] gap-3 h-[calc(100vh-320px)] min-h-[640px]">
@@ -217,6 +251,19 @@ export function TraceExplorer() {
           <Logs trace={trace} liveEvents={liveEvents} />
         </>
       )}
+      <ConfirmModal
+        isOpen={deleteId !== null}
+        title="Delete Execution Trace"
+        message={`Are you sure you want to delete trace ${deleteId?.slice(0, 12)}...? This action cannot be undone.`}
+        confirmText="Delete"
+        onConfirm={() => {
+          if (deleteId) {
+            handleDeleteConfirm(deleteId)
+            setDeleteId(null)
+          }
+        }}
+        onCancel={() => setDeleteId(null)}
+      />
     </div>
   )
 }
@@ -305,21 +352,25 @@ function DiffView({
   )
 }
 
-function TopBar({ trace, traceList, activeIdx, onLoad, onDelete }: {
+function TopBar({ trace, traceList, activeIdx, onLoad, onDelete, page, setPage, limit }: {
   trace: ExecutionTrace
   traceList: TraceSummary[]
   activeIdx: number
   onLoad: (id: string) => void
   onDelete: (id: string) => void
+  page: number
+  setPage: React.Dispatch<React.SetStateAction<number>>
+  limit: number
 }) {
+  const { toast } = useToast()
   const step = trace.steps[activeIdx] ?? trace.steps[0]
   const statusTone = trace.status === 'FAILED' ? 'err' : trace.status === 'COMPLETED' ? 'ok' : 'warn'
 
   function handleFork() {
     api.traces
       .replay(trace.executionId, activeIdx)
-      .then((r) => alert(`Forked → new executionId: ${(r as { executionId: string }).executionId}`))
-      .catch(() => alert(`POST /tracegraph/traces/${trace.executionId}/replay?step=${activeIdx}`))
+      .then((r) => toast(`Forked → new executionId: ${(r as { executionId: string }).executionId}`, 'success'))
+      .catch(() => toast(`Failed to fork trace replay`, 'error'))
   }
 
   return (
@@ -340,15 +391,36 @@ function TopBar({ trace, traceList, activeIdx, onLoad, onDelete }: {
         </>
       )}
       <div className="flex-1" />
+      <div className="flex items-center gap-1">
+        <button
+          onClick={() => setPage((p) => Math.max(0, p - 1))}
+          disabled={page === 0}
+          className="px-2 h-8 border hairline rounded-lg hover:bg-ink-50 dark:hover:bg-ink-900 disabled:opacity-40 transition-colors flex items-center justify-center font-bold"
+          title="Previous Page"
+        >
+          &lt;
+        </button>
+        <span className="text-[11px] text-ink-500 px-1">page {page + 1}</span>
+        <button
+          onClick={() => setPage((p) => p + 1)}
+          disabled={traceList.length < limit}
+          className="px-2 h-8 border hairline rounded-lg hover:bg-ink-50 dark:hover:bg-ink-900 disabled:opacity-40 transition-colors flex items-center justify-center font-bold"
+          title="Next Page"
+        >
+          &gt;
+        </button>
+      </div>
       <select
         className="mono text-[12px] px-2.5 h-8 rounded-lg border hairline bg-ink-50 dark:bg-ink-900 text-ink-950 dark:text-white"
         onChange={(e) => {
           const id = e.target.value.split(' · ')[0]
           if (id) onLoad(id)
         }}
+        value={traceList.some((t) => t.id === trace.executionId) ? `${trace.executionId} · ${trace.graph} · ${trace.status}` : ''}
       >
+        <option value="" disabled>— select trace —</option>
         {traceList.map((t) => (
-          <option key={t.id}>{t.id} · {t.graph} · {t.status}</option>
+          <option key={t.id} value={`${t.id} · ${t.graph} · ${t.status}`}>{t.id.slice(0, 16)}… · {t.graph} · {t.status}</option>
         ))}
       </select>
       <Button size="sm" variant="ghost" icon="trash-2" onClick={() => onDelete(trace.executionId)}>
@@ -366,10 +438,49 @@ function StepList({ trace, activeIdx, setActiveIdx }: {
   activeIdx: number
   setActiveIdx: (i: number) => void
 }) {
+  const [filter, setFilter] = useState('')
+
+  const filteredSteps = trace.steps.filter((s) =>
+    s.name.toLowerCase().includes(filter.toLowerCase()) ||
+    s.i.toString() === filter
+  )
+
+  const WINDOW_SIZE = 50
+  const activeInFiltered = filteredSteps.findIndex((s) => s.i === activeIdx)
+
+  let start = 0
+  let end = filteredSteps.length
+
+  if (filteredSteps.length > WINDOW_SIZE) {
+    const half = Math.floor(WINDOW_SIZE / 2)
+    const center = activeInFiltered !== -1 ? activeInFiltered : 0
+    start = Math.max(0, center - half)
+    end = Math.min(filteredSteps.length, start + WINDOW_SIZE)
+    if (end - start < WINDOW_SIZE) {
+      start = Math.max(0, end - WINDOW_SIZE)
+    }
+  }
+
+  const visibleSteps = filteredSteps.slice(start, end)
+
   return (
     <Panel title={`Steps · ${trace.steps.length}`}>
-      <div className="py-1.5">
-        {trace.steps.map((s) => (
+      <div className="p-3 border-b hairline">
+        <input
+          type="text"
+          placeholder="Search steps..."
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          className="w-full h-8 px-2.5 rounded-lg border hairline bg-ink-50 dark:bg-ink-900 text-ink-950 dark:text-white text-[12px] focus:outline-none focus:ring-1 focus:ring-accent-500"
+        />
+      </div>
+      <div className="py-1.5 overflow-y-auto scroll-thin max-h-[calc(100%-48px)]">
+        {start > 0 && (
+          <div className="text-center py-1 mono text-[10px] text-ink-400 border-b border-dashed hairline mb-1">
+            ... {start} steps hidden above ...
+          </div>
+        )}
+        {visibleSteps.map((s) => (
           <button
             key={s.i}
             onClick={() => setActiveIdx(s.i)}
@@ -395,6 +506,16 @@ function StepList({ trace, activeIdx, setActiveIdx }: {
             <span className="mono text-[10.5px] text-ink-500">{s.dur}ms</span>
           </button>
         ))}
+        {end < filteredSteps.length && (
+          <div className="text-center py-1 mono text-[10px] text-ink-400 border-t border-dashed hairline mt-1">
+            ... {filteredSteps.length - end} steps hidden below ...
+          </div>
+        )}
+        {filteredSteps.length === 0 && (
+          <div className="text-center py-4 text-[12px] text-ink-400">
+            No steps found
+          </div>
+        )}
       </div>
     </Panel>
   )
@@ -443,7 +564,8 @@ function GraphPanel({ trace, activeIdx, setActiveIdx }: {
   return (
     <Panel title={`graph · ${trace.graph ?? 'graph'}`}>
       <div className="grid-bg h-full p-2">
-        <svg viewBox="0 0 760 580" preserveAspectRatio="xMidYMid meet" className="w-full h-full text-ink-950 dark:text-white">
+        <svg viewBox="0 0 760 580" preserveAspectRatio="xMidYMid meet" className="w-full h-full text-ink-950 dark:text-white" aria-label="Execution Trace Graph">
+          <title>Execution Trace Graph</title>
           <defs>
             <marker id="tg-arr-acc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#0d8f63" /></marker>
             <marker id="tg-arr-err" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#e11d48" /></marker>
@@ -451,7 +573,7 @@ function GraphPanel({ trace, activeIdx, setActiveIdx }: {
           </defs>
 
           <rect x={NODE_LAYOUT_FIXED.validate.x + 15} y="30" width={NODE_LAYOUT_FIXED.validate.w - 30} height="22" rx="4" fill="currentColor" />
-          <text x={NODE_LAYOUT_FIXED.validate.x + NODE_LAYOUT_FIXED.validate.w / 2} y="45" textAnchor="middle" fill="white" className="mono" fontSize="10">▼ entry</text>
+          <text x={NODE_LAYOUT_FIXED.validate.x + NODE_LAYOUT_FIXED.validate.w / 2} y="45" textAnchor="middle" className="mono fill-white dark:fill-ink-950" fontSize="10">▼ entry</text>
 
           {EDGES_FIXED.map((e, i) => {
             const a = NODE_LAYOUT_FIXED[e.from as keyof typeof NODE_LAYOUT_FIXED]
@@ -478,9 +600,22 @@ function GraphPanel({ trace, activeIdx, setActiveIdx }: {
 
           {Object.entries(NODE_LAYOUT_FIXED).map(([name, n]) => {
             const s = nodeStyle(name)
+            const isClickable = !!stepFor(name)
             return (
-              <g key={name} style={{ cursor: 'pointer' }}
-                onClick={() => { const st = stepFor(name); if (st) setActiveIdx(st.i) }}>
+              <g key={name} style={{ cursor: isClickable ? 'pointer' : 'default', outline: 'none' }}
+                role={isClickable ? 'button' : undefined}
+                tabIndex={isClickable ? 0 : undefined}
+                aria-label={`Node: ${name}${'sub' in s && s.sub ? `, ${s.sub}` : ''}`}
+                onClick={() => { const st = stepFor(name); if (st) setActiveIdx(st.i) }}
+                onKeyDown={(e) => {
+                  if (isClickable && (e.key === 'Enter' || e.key === ' ')) {
+                    e.preventDefault()
+                    const st = stepFor(name);
+                    if (st) setActiveIdx(st.i)
+                  }
+                }}
+                className="focus-visible:outline-none [&_rect]:focus-visible:stroke-accent-500 [&_rect]:focus-visible:stroke-[2.5px]"
+              >
                 <rect x={n.x} y={n.y} width={n.w} height={n.h} rx="10"
                   fill={s.fill} stroke={s.stroke} strokeWidth={s.sw}
                   className={s.fill === 'white' ? 'dark:fill-ink-900' : ''} />
@@ -496,7 +631,7 @@ function GraphPanel({ trace, activeIdx, setActiveIdx }: {
             x2={NODE_LAYOUT_FIXED.ship.x + NODE_LAYOUT_FIXED.ship.w / 2} y2={NODE_LAYOUT_FIXED.ship.y + NODE_LAYOUT_FIXED.ship.h + 24}
             stroke="currentColor" strokeWidth="1.4" />
           <rect x={NODE_LAYOUT_FIXED.ship.x + 15} y={NODE_LAYOUT_FIXED.ship.y + NODE_LAYOUT_FIXED.ship.h + 24} width={NODE_LAYOUT_FIXED.ship.w - 30} height="22" rx="4" fill="currentColor" />
-          <text x={NODE_LAYOUT_FIXED.ship.x + NODE_LAYOUT_FIXED.ship.w / 2} y={NODE_LAYOUT_FIXED.ship.y + NODE_LAYOUT_FIXED.ship.h + 39} textAnchor="middle" fill="white" className="mono" fontSize="10">▲ terminal</text>
+          <text x={NODE_LAYOUT_FIXED.ship.x + NODE_LAYOUT_FIXED.ship.w / 2} y={NODE_LAYOUT_FIXED.ship.y + NODE_LAYOUT_FIXED.ship.h + 39} textAnchor="middle" className="mono fill-white dark:fill-ink-950" fontSize="10">▲ terminal</text>
         </svg>
       </div>
     </Panel>
@@ -512,7 +647,7 @@ function Inspector({ step }: { step: TraceStep }) {
   )
   return (
     <Panel title={`step · ${step.name}`}>
-      <div className="p-4 pb-6">
+      <div className="p-4 pb-6 overflow-y-auto scroll-thin max-h-full">
         <Field k="node" v={step.name} />
         <Field k="index" v={`#${String(step.i).padStart(2, '0')}`} />
         <Field k="status" v={step.status} tone={step.status === 'err' ? 'err' : step.status === 'ok' ? 'ok' : undefined} />
@@ -534,21 +669,53 @@ function Inspector({ step }: { step: TraceStep }) {
           )}
         </div>
 
-        <h4 className="mono text-[10.5px] uppercase tracking-[0.14em] text-ink-500 mt-5 mb-2">State · before</h4>
-        <pre className="rounded-lg bg-ink-50 dark:bg-ink-900 border hairline p-3.5 mono text-[11px] text-ink-700 dark:text-ink-300 overflow-x-auto scroll-thin">
-          {JSON.stringify(step.before, null, 2)}
-        </pre>
-
-        <h4 className="mono text-[10.5px] uppercase tracking-[0.14em] text-ink-500 mt-5 mb-2">State · after</h4>
-        {step.after
-          ? <pre className="rounded-lg bg-ink-50 dark:bg-ink-900 border hairline p-3.5 mono text-[11px] text-ink-700 dark:text-ink-300 overflow-x-auto scroll-thin">
-              {JSON.stringify(step.after, null, 2)}
-            </pre>
-          : <div className="rounded-lg border border-rose-200 dark:border-rose-900/40 bg-rose-50 dark:bg-rose-900/20 p-3.5 mono text-[11px] text-rose-700 dark:text-rose-300">(no exit; node failed)</div>}
+        <CollapsibleState title="State · before" state={step.before} />
+        <CollapsibleState title="State · after" state={step.after} />
       </div>
     </Panel>
   )
 }
+
+function CollapsibleState({ title, state }: { title: string; state: Record<string, unknown> | null }) {
+  const [expanded, setExpanded] = useState(false)
+  if (!state) {
+    return (
+      <div className="mt-5">
+        <span className="mono text-[10.5px] uppercase tracking-[0.14em] text-ink-500 block mb-2">{title}</span>
+        <div className="rounded-lg border border-rose-200 dark:border-rose-900/40 bg-rose-50 dark:bg-rose-900/20 p-3.5 mono text-[11px] text-rose-700 dark:text-rose-300">(no exit; node failed)</div>
+      </div>
+    )
+  }
+  const size = Object.keys(state).length
+  const jsonStr = JSON.stringify(state, null, 2)
+  const byteSize = new Blob([jsonStr]).size
+  const sizeStr = byteSize > 1024 ? `${(byteSize / 1024).toFixed(1)} KB` : `${byteSize} B`
+
+  return (
+    <div className="mt-5">
+      <div className="flex items-center justify-between mb-2">
+        <span className="mono text-[10.5px] uppercase tracking-[0.14em] text-ink-500">{title}</span>
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="mono text-[10px] px-2 py-0.5 rounded border hairline text-accent-600 hover:bg-accent-50 dark:hover:bg-accent-950/20 transition-colors"
+        >
+          {expanded ? 'Collapse' : `Expand (${size} keys, ${sizeStr})`}
+        </button>
+      </div>
+      {expanded ? (
+        <pre className="rounded-lg bg-ink-50 dark:bg-ink-900 border hairline p-3.5 mono text-[11px] text-ink-700 dark:text-ink-300 overflow-x-auto scroll-thin max-h-[300px]">
+          {jsonStr}
+        </pre>
+      ) : (
+        <div
+          className="rounded-lg bg-ink-50/50 dark:bg-ink-900/30 border border-dashed hairline p-2.5 mono text-[11px] text-ink-500 dark:text-ink-500 select-none cursor-pointer hover:bg-ink-50 dark:hover:bg-ink-900/50 transition-colors"
+          onClick={() => setExpanded(true)}
+        >
+          {JSON.stringify(state).slice(0, 60)}...
+        </div>
+      )}
+    </div>
+  )}
 
 function Timeline({ trace, activeIdx, setActiveIdx }: {
   trace: ExecutionTrace
@@ -559,6 +726,14 @@ function Timeline({ trace, activeIdx, setActiveIdx }: {
   const step = trace.steps[activeIdx] ?? trace.steps[0]
   if (!step) return null
   const cursorPos = ((step.t0 + step.dur / 2) / total) * 100
+
+  // Filter/decimate timeline elements if there are too many, but always keep active step
+  const renderedTimelineSteps = trace.steps.filter((s) => {
+    if (trace.steps.length <= 100) return true
+    if (s.i === activeIdx) return true
+    const widthPercent = (s.dur / total) * 100
+    return widthPercent >= 0.5
+  })
 
   return (
     <div className="mt-3 rounded-xl border hairline bg-white dark:bg-ink-950 px-4 py-3.5">
@@ -576,7 +751,7 @@ function Timeline({ trace, activeIdx, setActiveIdx }: {
         {Array.from({ length: 12 }).map((_, i) => (
           <div key={i} className="absolute top-0 bottom-0 w-px bg-black/5 dark:bg-white/5" style={{ left: `${(i / 11) * 100}%` }} />
         ))}
-        {trace.steps.map((s) => {
+        {renderedTimelineSteps.map((s) => {
           const bg = s.status === 'parallel' ? 'bg-amber-200 text-ink-950'
             : s.status === 'retry' ? 'bg-amber-400 text-ink-950'
             : s.status === 'err' ? 'bg-rose-500 text-white'
@@ -597,6 +772,7 @@ function Timeline({ trace, activeIdx, setActiveIdx }: {
 }
 
 function Logs({ trace, liveEvents }: { trace: ExecutionTrace; liveEvents: { t: number; type: string; node: string }[] }) {
+  const [logLimit, setLogLimit] = useState(100)
   const lvColors: Record<string, string> = {
     info: 'text-ink-500',
     warn: 'text-amber-600 dark:text-amber-400',
@@ -604,6 +780,7 @@ function Logs({ trace, liveEvents }: { trace: ExecutionTrace; liveEvents: { t: n
     evt:  'text-accent-600 dark:text-accent-100',
   }
   const logs = trace.logs ?? []
+  const visibleLogs = logs.slice(0, logLimit)
   return (
     <div className="mt-3 rounded-xl border hairline bg-white dark:bg-ink-950 overflow-hidden">
       <div className="px-4 py-2.5 border-b hairline flex items-center justify-between bg-ink-50/50 dark:bg-ink-900/40">
@@ -618,7 +795,7 @@ function Logs({ trace, liveEvents }: { trace: ExecutionTrace; liveEvents: { t: n
         )}
       </div>
       <div className="max-h-[200px] overflow-auto scroll-thin mono text-[11.5px] leading-[1.65]">
-        {logs.map((l, i) => (
+        {visibleLogs.map((l, i) => (
           <div key={i} className="grid grid-cols-[60px_50px_1fr] gap-3 px-4 py-1 border-t hairline first:border-t-0 text-ink-700 dark:text-ink-300">
             <span className="text-ink-400">{String(l.t).padStart(4, '0')}ms</span>
             <span className={`font-medium ${lvColors[l.lv] ?? ''}`}>{l.lv.toUpperCase()}</span>
@@ -632,6 +809,14 @@ function Logs({ trace, liveEvents }: { trace: ExecutionTrace; liveEvents: { t: n
             <span>{e.type}{e.node ? ` · ${e.node}` : ''}</span>
           </div>
         ))}
+        {logs.length > logLimit && (
+          <button
+            onClick={() => setLogLimit((limit) => limit + 200)}
+            className="w-full py-2 mono text-[11px] text-accent-600 hover:bg-accent-50 dark:hover:bg-accent-950/20 text-center border-t border-dashed hairline transition-colors focus:outline-none"
+          >
+            Show more logs ({logs.length - logLimit} remaining)
+          </button>
+        )}
         {logs.length === 0 && liveEvents.length === 0 && (
           <div className="px-4 py-3 text-ink-400">(no logs)</div>
         )}

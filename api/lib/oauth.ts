@@ -87,15 +87,27 @@ export async function getOAuthUser(provider: OAuthProvider, accessToken: string)
     }
   }
 
-  // GitHub: email may need separate request
+  // GitHub: email needs verified check via separate request
   let email = String(data.email ?? '')
-  if (!email) {
+  let emailVerified = false
+  try {
     const emailRes = await fetch('https://api.github.com/user/emails', {
       headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/json', 'User-Agent': 'TraceGraph/1.0' },
     })
-    const emails = await emailRes.json() as { email: string; primary: boolean; verified: boolean }[]
-    const primary = emails.find((e) => e.primary && e.verified)
-    email = primary?.email ?? ''
+    if (emailRes.ok) {
+      const emails = await emailRes.json() as { email: string; primary: boolean; verified: boolean }[]
+      const best = emails.find((e) => e.verified && e.primary) ?? emails.find((e) => e.verified)
+      if (best) {
+        email = best.email
+        emailVerified = true
+      } else if (email) {
+        const match = emails.find((e) => e.email === email)
+        emailVerified = match ? match.verified : false
+      }
+    }
+  } catch {
+    emailVerified = false
   }
-  return { id: String(data.id), email, emailVerified: true }
+
+  return { id: String(data.id), email, emailVerified }
 }

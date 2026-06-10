@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import { handle } from 'hono/vercel'
+import { loggingMiddleware } from './middleware/logging.js'
 import { corsMiddleware } from './middleware/cors.js'
 import { securityHeaders } from './middleware/securityHeaders.js'
 import { sessionMiddleware } from './middleware/session.js'
@@ -13,9 +14,11 @@ import { mfaRouter } from './routes/auth/mfa.js'
 import { sessionRouter } from './routes/auth/session.js'
 import { meRouter } from './routes/me.js'
 import { proxyRouter } from './routes/proxy.js'
+import { cronRouter } from './routes/cron.js'
 
 const app = new Hono().basePath('/api')
 
+app.use('*', loggingMiddleware)
 app.use('*', corsMiddleware)
 app.use('*', securityHeaders)
 app.use('*', sessionMiddleware)
@@ -30,11 +33,26 @@ app.route('/auth', mfaRouter)
 app.route('/auth', sessionRouter)
 app.route('/me', meRouter)
 app.route('/traces', proxyRouter)
+app.route('/graph', proxyRouter)
+app.route('/cron', cronRouter)
 
 app.get('/health', (c) => c.json({ ok: true }))
 
 app.onError((err, c) => {
   const status = (err as { status?: number }).status ?? 500
+  const reqId = c.get('requestId') || 'unknown'
+  const logPayload = {
+    type: 'error',
+    requestId: reqId,
+    status,
+    message: err.message,
+    stack: err.stack,
+    path: c.req.path,
+    method: c.req.method,
+    timestamp: new Date().toISOString(),
+  }
+  console.error(JSON.stringify(logPayload))
+
   const message = status < 500 ? err.message : 'Internal server error'
   return c.json({ error: message }, status as 400 | 401 | 403 | 404 | 413 | 429 | 500)
 })

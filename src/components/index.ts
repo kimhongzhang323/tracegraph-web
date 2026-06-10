@@ -11,3 +11,9 @@ export { Footer } from './Footer'
 export { Seo } from './Seo'
 export { GraphCanvas } from './GraphCanvas'
 export { BackendConnect } from './BackendConnect'
+export { ErrorBoundary } from './ErrorBoundary'
+export { PageLoader } from './PageLoader'
+export { ConfirmModal } from './ConfirmModal'
+
+
+
