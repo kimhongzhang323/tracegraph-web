@@ -20,7 +20,7 @@
     "test:e2e:debug": "playwright test --debug"
   },
   "dependencies": {
-    "@hono/node-server": "^2.0.2",
+    "@hono/node-server": "^2.0.10",
     "@neondatabase/serverless": "^1.1.0",
     "@node-rs/argon2": "^2.0.2",
     "@simplewebauthn/browser": "^13.3.0",
